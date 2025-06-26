@@ -49,18 +49,21 @@ class RateLimitExtension(BaseExtension):
                         self.request_counts.clear()
                         self.last_reset = current_time
 
-                    # Get client identifier (simplified for testing)
-                    client_id = "test_client"
+                    # Get client identifier per endpoint (simplified for testing)
+                    client_id = f"test_client_{endpoint.__name__}"
 
                     # Check rate limit
                     limit = route_config.get("rate_limit", 1000)
                     current_count = self.request_counts.get(client_id, 0)
                     
-                    if current_count >= limit:
+                    # Increment count first
+                    new_count = current_count + 1
+                    
+                    if new_count > limit:
                         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
-                    # Increment count
-                    self.request_counts[client_id] = current_count + 1
+                    # Store the new count
+                    self.request_counts[client_id] = new_count
 
                     return endpoint(*args, **kwargs)
                 return wrapper
@@ -194,10 +197,16 @@ class TestEndToEndHTTPRequests:
                     "security_headers": True,
                     "rate_limit": 5,
                     "admin_only": True
+                },
+                
+                # Default for all other API endpoints
+                "/api/*": {
+                    "rate_limit": 100,
+                    "cache_ttl": 30
                 }
             },
             "extensions": {
-                "tests.test_e2e_requests:RateLimitExtension": {"window_size": 60},
+                "tests.test_e2e_requests:RateLimitExtension": {"window_size": 3600},  # 1 hour - don't reset during tests
                 "tests.test_e2e_requests:CacheExtension": {"max_size": 1000},
                 "tests.test_e2e_requests:SecurityHeadersExtension": {"strict_mode": True}
             }
@@ -342,8 +351,8 @@ class TestEndToEndHTTPRequests:
             
             # Check that each extension would apply to this route
             assert rate_limiter.should_apply_to_route("/api/secure", ["GET"], secure_config)
-            # Cache extension doesn't apply (no cache_ttl configured for /api/secure)
-            assert not cache_ext.should_apply_to_route("/api/secure", ["GET"], secure_config)
+            # Cache extension now applies (cache_ttl from wildcard pattern /api/*)
+            assert cache_ext.should_apply_to_route("/api/secure", ["GET"], secure_config)
             assert security_ext.should_apply_to_route("/api/secure", ["GET"], secure_config)
 
         finally:
@@ -755,20 +764,20 @@ class TestComplexScenarioE2E:
         config = {
             "app": {"name": "mixed_app", "version": "1.0.0"},
             "routes": {
-                # HTML routes
+                # HTML routes  
                 "/": {"cache_ttl": 300, "security_headers": True},
                 "/dashboard": {
-                    "auth_required": True,
+                    "auth_required": True, 
                     "authenticated": True,
                     "cache_ttl": 60,
                     "security_headers": True
                 },
                 
-                # API routes
+                # API routes (router adds /api prefix, so config should match actual paths)
                 "/api/data": {"rate_limit": 1000, "cache_ttl": 120},
                 "/api/user/*": {
                     "auth_required": True,
-                    "authenticated": True,
+                    "authenticated": True, 
                     "rate_limit": 100
                 }
             },

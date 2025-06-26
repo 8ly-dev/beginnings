@@ -13,6 +13,7 @@ from fastapi import APIRouter as FastAPIRouter
 from fastapi.responses import JSONResponse
 
 from beginnings.config.route_resolver import RouteConfigResolver
+from beginnings.routing.cors import CORSManager, create_cors_manager_from_config
 from beginnings.routing.middleware import MiddlewareChainBuilder
 
 if TYPE_CHECKING:
@@ -51,6 +52,10 @@ class APIRouter(FastAPIRouter):
         self._extension_manager = extension_manager
         self._middleware_builder = MiddlewareChainBuilder(extension_manager)
         self._registered_routes: dict[str, list[str]] = {}
+        
+        # Initialize CORS manager if configured
+        self._cors_manager: CORSManager | None = None
+        self._init_cors_manager(config)
 
     def add_api_route(self, path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None:
         """
@@ -66,8 +71,16 @@ class APIRouter(FastAPIRouter):
         if isinstance(methods, str):
             methods = [methods]
 
-        # Resolve route configuration
-        route_config = self._route_resolver.resolve_route_config(path, methods)
+        # Construct full path including prefix for configuration resolution
+        full_path = path
+        if hasattr(self, 'prefix') and self.prefix:
+            # Remove leading slash from path if prefix ends with slash
+            prefix = self.prefix.rstrip('/')
+            path_part = path.lstrip('/')  
+            full_path = f"{prefix}/{path_part}"
+        
+        # Resolve route configuration using full path
+        route_config = self._route_resolver.resolve_route_config(full_path, methods)
 
         # Build middleware chain for this route
         middleware_chain = self._middleware_builder.build_middleware_chain(
@@ -85,6 +98,20 @@ class APIRouter(FastAPIRouter):
 
         # Call parent method with enhanced endpoint
         super().add_api_route(path, enhanced_endpoint, methods=methods, **kwargs)
+
+    def _init_cors_manager(self, config: dict[str, Any]) -> None:
+        """
+        Initialize CORS manager from configuration.
+
+        Args:
+            config: Application configuration
+        """
+        try:
+            self._cors_manager = create_cors_manager_from_config(config)
+        except Exception:
+            # CORS manager is optional - if it fails to initialize,
+            # continue without it (CORS will not work but router still functions)
+            self._cors_manager = None
 
     def _apply_route_config(self, kwargs: dict[str, Any], route_config: dict[str, Any]) -> None:
         """
@@ -113,6 +140,87 @@ class APIRouter(FastAPIRouter):
         # Apply API-specific settings
         if "include_in_schema" not in kwargs and "include_in_schema" in route_config:
             kwargs["include_in_schema"] = route_config["include_in_schema"]
+
+    def mount_cors_middleware(self, app: Any) -> None:
+        """
+        Mount CORS middleware on the given FastAPI app if CORS is configured.
+
+        Args:
+            app: FastAPI application instance to mount CORS middleware on
+        """
+        if self._cors_manager is None:
+            return
+        
+        # Add global CORS middleware if configured
+        if self._cors_manager.global_cors_config:
+            from fastapi.middleware.cors import CORSMiddleware
+            
+            cors_config = self._cors_manager.global_cors_config
+            app.add_middleware(
+                CORSMiddleware,
+                **cors_config.to_middleware_kwargs()
+            )
+
+    def has_cors_for_route(self, route_path: str) -> bool:
+        """
+        Check if CORS is configured for a route.
+
+        Args:
+            route_path: Route path
+
+        Returns:
+            True if CORS is configured, False otherwise
+        """
+        if self._cors_manager is None:
+            return False
+        
+        return self._cors_manager.has_cors_for_route(route_path)
+
+    def get_cors_config_for_route(self, route_path: str) -> dict[str, Any] | None:
+        """
+        Get CORS configuration for a specific route.
+
+        Args:
+            route_path: Route path
+
+        Returns:
+            CORS configuration dictionary or None
+        """
+        if self._cors_manager is None:
+            return None
+        
+        cors_config = self._cors_manager.get_cors_config_for_route(route_path)
+        if cors_config:
+            return cors_config.to_middleware_kwargs()
+        return None
+
+    def add_cors_for_route(
+        self, 
+        route_path: str, 
+        cors_config: dict[str, Any]
+    ) -> None:
+        """
+        Add CORS configuration for a specific route.
+
+        Args:
+            route_path: Route path
+            cors_config: CORS configuration dictionary
+        """
+        if self._cors_manager is None:
+            from beginnings.routing.cors import CORSManager
+            self._cors_manager = CORSManager()
+        
+        self._cors_manager.set_route_cors(route_path, cors_config)
+
+    @property
+    def cors_manager(self) -> CORSManager | None:
+        """
+        Get the CORS manager instance.
+
+        Returns:
+            CORSManager instance or None if not configured
+        """
+        return self._cors_manager
 
 
 def create_api_response(

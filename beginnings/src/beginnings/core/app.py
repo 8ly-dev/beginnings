@@ -44,15 +44,20 @@ class App(FastAPI):
             environment: Environment name (auto-detected if None)
             **fastapi_kwargs: Additional arguments passed to FastAPI
         """
-        # Initialize configuration system first
-        self._environment_detector = EnvironmentDetector(config_dir, environment)
-        self._config_loader = EnhancedConfigLoader(
-            self._environment_detector.get_config_dir(),
-            self._environment_detector.get_environment()
-        )
-
-        # Load configuration
-        self._config = self._config_loader.load_config()
+        # Initialize configuration system with graceful fallback
+        try:
+            self._environment_detector = EnvironmentDetector(config_dir, environment)
+            self._config_loader = EnhancedConfigLoader(
+                self._environment_detector.get_config_dir(),
+                self._environment_detector.get_environment()
+            )
+            # Load configuration
+            self._config = self._config_loader.load_config()
+        except Exception:
+            # Graceful fallback: use minimal default configuration when config loading fails
+            self._environment_detector = None
+            self._config_loader = None
+            self._config = self._get_default_config()
 
         # Initialize route configuration resolver
         self._route_resolver = RouteConfigResolver(self._config)
@@ -140,6 +145,10 @@ class App(FastAPI):
         This forces a reload of all configuration files and updates
         the route resolver and extension manager.
         """
+        if self._config_loader is None:
+            # No configuration loader available - cannot reload
+            return
+        
         # Clear caches and reload
         self._config_loader.clear_cache()
         self._config = self._config_loader.load_config(force_reload=True)
@@ -157,7 +166,45 @@ class App(FastAPI):
         Returns:
             Environment name
         """
-        return self._environment_detector.get_environment()
+        if self._environment_detector:
+            return self._environment_detector.get_environment()
+        return "development"  # Default when no configuration
+
+    def include_router(self, router: Any, **kwargs: Any) -> None:
+        """
+        Include a router and automatically mount features based on router type.
+
+        Args:
+            router: Router to include
+            **kwargs: Additional arguments passed to FastAPI include_router
+        """
+        # Include the router first
+        super().include_router(router, **kwargs)
+        
+        # If it's an HTMLRouter with static file management, mount static files
+        if isinstance(router, HTMLRouter) and hasattr(router, 'mount_static_files'):
+            router.mount_static_files(self)
+        
+        # If it's an APIRouter with CORS management, mount CORS middleware
+        if isinstance(router, APIRouter) and hasattr(router, 'mount_cors_middleware'):
+            router.mount_cors_middleware(self)
+
+    def _get_default_config(self) -> dict[str, Any]:
+        """
+        Get minimal default configuration for operation without config files.
+        
+        Returns:
+            Default configuration dictionary
+        """
+        return {
+            "app": {
+                "name": "beginnings-app",
+                "version": "0.1.0",
+                "description": "A Beginnings application"
+            },
+            "routes": {},
+            "extensions": {}
+        }
 
     def _load_extensions(self) -> None:
         """Load extensions from configuration."""

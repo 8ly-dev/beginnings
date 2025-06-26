@@ -53,23 +53,37 @@ class MiddlewareChainBuilder:
         if not applicable_extensions:
             return None
 
-        # Build middleware functions from extensions
+        # Build middleware functions from extensions with security-first ordering
         middleware_functions = []
+        
+        # Define security extension types that must execute first
+        security_extensions = ['RateLimitExtension', 'SecurityHeadersExtension', 'AuthExtension']
+        
+        # Sort extensions: security extensions first, then others
+        security_middleware = []
+        other_middleware = []
+        
         for extension in applicable_extensions:
             try:
                 middleware_factory = extension.get_middleware_factory()
                 if middleware_factory:
                     middleware = middleware_factory(route_config)
                     if middleware:
-                        middleware_functions.append(middleware)
+                        if extension.__class__.__name__ in security_extensions:
+                            security_middleware.append(middleware)
+                        else:
+                            other_middleware.append(middleware)
             except Exception as e:
                 # Log error but continue with other middleware
                 # In a real implementation, we'd use proper logging
                 print(f"Warning: Middleware factory failed for extension: {e}")
+        
+        # Combine: security middleware first (execute first), then other middleware (execute last)
+        # Remember: chain is reversed, so first added = last executed
+        middleware_functions = security_middleware + other_middleware
 
         if not middleware_functions:
             return None
-
         # Compose middleware functions into a chain
         return self._compose_middleware_chain(middleware_functions)
 

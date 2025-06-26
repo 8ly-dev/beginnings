@@ -42,15 +42,23 @@ from beginnings import App
 # Create application
 app = App()
 
-# Use HTML router for web pages
-@app.html.get("/")
+# Create routers
+html_router = app.create_html_router()
+api_router = app.create_api_router()
+
+# HTML routes for web pages
+@html_router.get("/")
 def index():
     return "<h1>Welcome to Beginnings!</h1>"
 
-# Use API router for JSON endpoints
-@app.api.get("/hello")
+# API routes for JSON endpoints
+@api_router.get("/hello")
 def hello():
     return {"message": "Hello from Beginnings!"}
+
+# Include routers in app
+app.include_router(html_router)
+app.include_router(api_router)
 
 # Run the application
 if __name__ == "__main__":
@@ -128,21 +136,29 @@ export BEGINNINGS_APP_DEBUG=true
 
 ## Extensions
 
-Create custom extensions by inheriting from `BeginningsExtension`:
+Create custom extensions by inheriting from `BaseExtension`:
 
 ```python
-from beginnings.extensions import BeginningsExtension
+from beginnings.extensions.base import BaseExtension
 
-class MyExtension(BeginningsExtension):
-    def __init__(self):
-        super().__init__("my_extension")
+class MyExtension(BaseExtension):
+    def __init__(self, config: dict[str, Any]):
+        super().__init__(config)
+        self.name = config.get("name", "MyExtension")
     
-    def initialize(self, app, config):
-        # Extension initialization logic
-        pass
+    def get_middleware_factory(self):
+        def middleware_factory(route_config):
+            def middleware(endpoint):
+                @functools.wraps(endpoint)
+                async def wrapper(*args, **kwargs):
+                    # Extension logic here
+                    return await endpoint(*args, **kwargs)
+                return wrapper
+            return middleware
+        return middleware_factory
     
-    def get_version(self):
-        return "1.0.0"
+    def should_apply_to_route(self, path, methods, route_config):
+        return True  # Apply to all routes
 ```
 
 ## Contributing
