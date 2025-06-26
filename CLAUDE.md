@@ -1,0 +1,1 @@
+- planning phases are in planning/v1-the-beginning
