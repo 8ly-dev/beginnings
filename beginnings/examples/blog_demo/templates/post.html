@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - Blog Demo{% endblock %}
+
+{% block content %}
+<a href="/" class="back-link">
+    <span class="arrow">←</span>
+    <span>Back to posts</span>
+</a>
+
+<article>
+    <header class="article-header">
+        <h1 class="article-title">{{ post.title }}</h1>
+        <div class="article-meta">
+            <span class="author">{{ post.author }}</span>
+            <span class="date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+        </div>
+    </header>
+    
+    <div class="article-content">
+        <p>{{ post.content }}</p>
+    </div>
+</article>
+{% endblock %}

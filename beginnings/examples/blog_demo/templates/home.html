@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Blog Demo{% endblock %}
+
+{% block content %}
+<div class="posts">
+    {% for post in posts %}
+    <article class="post-card">
+        <h2><a href="/posts/{{ post.id }}" class="post-title">{{ post.title }}</a></h2>
+        <div class="post-meta">
+            <span class="author">{{ post.author }}</span>
+            <span class="date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+        </div>
+        <p class="post-excerpt">{{ post.content[:150] }}...</p>
+        <a href="/posts/{{ post.id }}" class="read-more">Read more →</a>
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}

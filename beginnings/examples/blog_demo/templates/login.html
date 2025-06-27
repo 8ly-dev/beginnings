@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Blog Demo{% endblock %}
+
+{% block content %}
+<div class="login-center">
+    <h1 class="login-title">Login</h1>
+    <p class="login-description">Enter your username to log in and create new blog posts.</p>
+
+    <form method="post" action="/login" class="login-form">
+        <div class="form-group">
+            <input type="text" id="username" name="username" required placeholder="Your username" autocomplete="off">
+        </div>
+        
+        <div class="button-container">
+            <button type="submit" class="login-button">Login</button>
+        </div>
+    </form>
+</div>
+
+<style>
+.login-center {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 60vh;
+}
+
+.login-title {
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    color: #000000;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+}
+
+.login-description {
+    font-size: 1.2rem;
+    color: #404040;
+    line-height: 1.8;
+    margin-bottom: 40px;
+}
+
+.login-form {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 30px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-bottom: 2px solid #e9ecef;
+    background: #f0f0f0;
+    font-size: 1.1rem;
+    transition: border-bottom-color 300ms ease;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.form-group input::placeholder {
+    color: #999999;
+}
+
+.form-group input:focus {
+    border-bottom-color: #000000;
+}
+
+.button-container {
+    text-align: right;
+}
+
+.login-button {
+    background: #000000;
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 300ms ease;
+}
+
+.login-button:hover {
+    background: #404040;
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+    .login-title {
+        color: #ffffff;
+    }
+    
+    .login-description {
+        color: #cccccc;
+    }
+    
+    .form-group input {
+        color: #ffffff;
+        border-bottom-color: #333333;
+        background: #161616;
+    }
+    
+    .form-group input::placeholder {
+        color: #666666;
+    }
+    
+    .form-group input:focus {
+        border-bottom-color: #ffffff;
+    }
+    
+    .login-button {
+        background: #ffffff;
+        color: #000000;
+    }
+    
+    .login-button:hover {
+        background: #cccccc;
+    }
+}
+</style>
+{% endblock %}

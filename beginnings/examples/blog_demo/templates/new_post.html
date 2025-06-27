@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}New Post - Blog Demo{% endblock %}
+
+{% block content %}
+<h1 class="post-title">Create New Post</h1>
+
+<form method="post" action="/new-post" class="post-form">
+    <div class="form-group">
+        <input type="text" id="title" name="title" required placeholder="Post title">
+    </div>
+    
+    <div class="form-group">
+        <textarea id="content" name="content" rows="12" required placeholder="Compose your post here..."></textarea>
+    </div>
+    
+    <div class="form-actions">
+        <a href="/" class="cancel-button">Cancel</a>
+        <button type="submit" class="submit-button">Publish</button>
+    </div>
+</form>
+
+<style>
+.post-title {
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    color: #000000;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 40px;
+}
+
+.post-form {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 30px;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-bottom: 2px solid #e9ecef;
+    background: #f0f0f0;
+    font-size: 1.1rem;
+    font-family: inherit;
+    transition: border-bottom-color 300ms ease;
+    box-sizing: border-box;
+    outline: none;
+    resize: none;
+}
+
+.form-group textarea {
+    min-height: 300px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #999999;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    border-bottom-color: #000000;
+}
+
+.form-actions {
+    display: flex;
+    gap: 20px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.cancel-button {
+    color: #666666;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 12px 24px;
+    transition: color 300ms ease;
+}
+
+.cancel-button:hover {
+    color: #000000;
+}
+
+.submit-button {
+    background: #000000;
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 300ms ease;
+}
+
+.submit-button:hover {
+    background: #404040;
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+    .post-title {
+        color: #ffffff;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+        color: #ffffff;
+        border-bottom-color: #333333;
+        background: #161616;
+    }
+    
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+        color: #666666;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus {
+        border-bottom-color: #ffffff;
+    }
+    
+    .cancel-button {
+        color: #999999;
+    }
+    
+    .cancel-button:hover {
+        color: #ffffff;
+    }
+    
+    .submit-button {
+        background: #ffffff;
+        color: #000000;
+    }
+    
+    .submit-button:hover {
+        background: #cccccc;
+    }
+}
+</style>
+{% endblock %}

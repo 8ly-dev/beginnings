@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Blog Demo{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="sticky-nav">
+        <div class="page-container">
+            <div class="nav-container">
+                <a href="/" class="nav-title">Blog Demo</a>
+                <div class="navigation">
+                    <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
+                    <a href="/about" class="nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
+                    {% if current_user %}
+                        <a href="/new-post" class="nav-link {% if active_page == 'new_post' %}active{% endif %}">New Post</a>
+                        <span class="user-info">{{ current_user }}</span>
+                        <a href="/logout" class="nav-link">Logout</a>
+                    {% else %}
+                        <a href="/login" class="nav-link {% if active_page == 'login' %}active{% endif %}">Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="page-container">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <div class="footer-text">Built with the Beginnings framework</div>
+                    <a href="https://beginnings.8ly.xyz/docs" class="docs-link" target="_blank">View Documentation</a>
+                </div>
+                <div class="footer-right">
+                    <div class="copyright">© 2025 <a href="https://8ly.xyz" class="footer-link" target="_blank">8ly LLC</a></div>
+                    <div class="license">Made available under the <a href="https://opensource.org/licenses/MIT" class="footer-link" target="_blank">MIT license</a></div>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
