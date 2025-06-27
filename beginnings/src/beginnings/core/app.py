@@ -367,19 +367,29 @@ class App(FastAPI):
             align-items: center;
             gap: 0.5rem;
             padding: 12px 24px;
-            background: #000000;
-            color: white;
+            background: transparent;
+            color: #000000;
             text-decoration: none;
             border-radius: 6px;
             font-weight: 600;
-            transition: all 0.2s ease;
+            transition: background-color 500ms ease;
+            position: relative;
+            margin-right: -24px;
             float: right;
         }}
         
+        .back-link .arrow {{
+            transition: transform 500ms ease;
+        }}
+        
         .back-link:hover {{
-            background: #333333;
+            background: #f0f0f0;
             text-decoration: none;
-            color: white;
+            color: #000000;
+        }}
+        
+        .back-link:hover .arrow {{
+            transform: translateX(-4px);
         }}
         
         .button-container {{
@@ -395,7 +405,7 @@ class App(FastAPI):
         <div class="error-detail">{detail}</div>
         <div class="button-container">
             <a href="#" onclick="history.back(); return false;" class="back-link">
-                <span>←</span>
+                <span class="arrow">←</span>
                 <span>Back</span>
             </a>
         </div>
