@@ -248,3 +248,47 @@ def validate_configuration_with_security_check(config: dict[str, Any]) -> None:
     security_issues = scan_for_security_issues(config)
     if security_issues:
         raise ConfigurationSecurityError(f"Security issues: {', '.join(security_issues)}")
+
+
+class ConfigValidator:
+    """Configuration validator for CLI commands."""
+    
+    def validate(self, config: dict[str, Any], include_security: bool = False) -> dict[str, list[str]]:
+        """
+        Validate configuration and return results.
+        
+        Args:
+            config: Configuration dictionary to validate
+            include_security: Whether to include security audit
+            
+        Returns:
+            Dictionary with 'errors', 'warnings', and 'info' lists
+        """
+        result = {"errors": [], "warnings": [], "info": []}
+        
+        try:
+            validate_configuration_structure(config)
+        except ConfigurationValidationError as e:
+            result["errors"].append(str(e))
+        
+        # Check for conflicts
+        conflicts = detect_configuration_conflicts(config)
+        result["warnings"].extend(conflicts)
+        
+        # Security checks if requested
+        if include_security:
+            try:
+                security_issues = scan_for_security_issues(config)
+                if security_issues:
+                    # Treat as warnings for CLI validation unless critical
+                    result["warnings"].extend(security_issues)
+            except Exception as e:
+                result["errors"].append(f"Security validation failed: {e}")
+        
+        # Add informational items
+        result["info"].append(f"Configuration contains {len(config)} top-level sections")
+        
+        if config.get("extensions"):
+            result["info"].append(f"Configuration loads {len(config['extensions'])} extensions")
+        
+        return result
