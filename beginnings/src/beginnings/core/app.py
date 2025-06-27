@@ -11,7 +11,8 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from beginnings.config.enhanced_loader import EnhancedConfigLoader
 from beginnings.config.environment import EnvironmentDetector
@@ -80,6 +81,9 @@ class App(FastAPI):
 
         # Load extensions from configuration
         self._load_extensions()
+        
+        # Set up content-aware error handling
+        self._setup_error_handlers()
 
     def get_config(self) -> dict[str, Any]:
         """
@@ -212,6 +216,194 @@ class App(FastAPI):
         if extensions_config:
             self._extension_manager.load_extensions_from_configuration(extensions_config)
 
+    def _setup_error_handlers(self) -> None:
+        """Set up content-aware error handling."""
+        
+        @self.exception_handler(HTTPException)
+        async def http_exception_handler(request: Request, exc: HTTPException) -> Any:
+            """Handle HTTP exceptions with content-aware responses."""
+            return await self._handle_http_exception(request, exc)
+        
+        # Handle 404 errors for non-existent routes
+        @self.exception_handler(404)
+        async def not_found_handler(request: Request, exc: Any) -> Any:
+            """Handle 404 errors with content-aware responses."""
+            # Create HTTPException if we don't have one
+            if not isinstance(exc, HTTPException):
+                exc = HTTPException(status_code=404, detail="Page not found")
+            return await self._handle_http_exception(request, exc)
+
+    async def _handle_http_exception(self, request: Request, exc: HTTPException) -> Any:
+        """
+        Handle HTTP exceptions with content negotiation.
+        
+        Args:
+            request: The incoming request
+            exc: The HTTP exception
+            
+        Returns:
+            Either HTMLResponse or JSONResponse based on request Accept header
+        """
+        # Check Accept header to determine response format
+        accept_header = request.headers.get("accept", "").lower()
+        user_agent = request.headers.get("user-agent", "").lower()
+        
+        # Determine if this should be an HTML response
+        wants_html = (
+            # Explicit HTML accept header
+            "text/html" in accept_header or
+            # Browser user agents that don't specify JSON
+            (("mozilla" in user_agent or "webkit" in user_agent) and 
+             "application/json" not in accept_header) or
+            # Non-API paths (don't start with /api)
+            not str(request.url.path).startswith("/api")
+        ) and "application/json" not in accept_header
+
+        if wants_html:
+            # Try to find an HTML router that can render error pages
+            html_router = self._find_html_router()
+            if html_router and hasattr(html_router, 'render_error_page'):
+                return html_router.render_error_page(exc.status_code, exc.detail, request)
+            else:
+                # Fallback to basic HTML error page
+                return self._create_basic_html_error(exc.status_code, exc.detail)
+        else:
+            # Return JSON error response for API requests
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail}
+            )
+
+    def _find_html_router(self) -> Any:
+        """Find the first HTML router in the application."""
+        from beginnings.routing.html import HTMLRouter
+        
+        # Look through registered routers to find an HTMLRouter
+        for route in self.routes:
+            if hasattr(route, 'router') and isinstance(route.router, HTMLRouter):
+                return route.router
+        return None
+
+    def _create_basic_html_error(self, status_code: int, detail: str) -> Any:
+        """Create a basic HTML error page when no HTML router is available."""
+        from fastapi.responses import HTMLResponse
+        
+        status_messages = {
+            404: "Page Not Found",
+            500: "Internal Server Error", 
+            403: "Forbidden",
+            401: "Unauthorized",
+            400: "Bad Request"
+        }
+        
+        title = status_messages.get(status_code, "Error")
+        
+        # Clear, friendly error messages
+        friendly_messages = {
+            404: "The page you're looking for isn't here",
+            500: "Something went wrong on our end",
+            403: "You don't have permission to access this page",
+            401: "Please log in to continue",
+            400: "The request couldn't be processed"
+        }
+        
+        friendly_detail = friendly_messages.get(status_code, "An unexpected error occurred")
+        
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{status_code} - {title}</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f8f9fa;
+            color: #000000;
+            padding: 20px;
+        }}
+        
+        .error-container {{
+            width: auto;
+            max-width: 90vw;
+        }}
+        
+        .error-code {{
+            font-size: clamp(4rem, 20vw, 8rem);
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            color: #000000;
+            text-align: left;
+        }}
+        
+        .error-message {{
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            margin-bottom: 1rem;
+            color: #404040;
+            font-weight: 500;
+            text-align: left;
+        }}
+        
+        .error-detail {{
+            font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+            margin-bottom: 2rem;
+            color: #666666;
+            line-height: 1.5;
+            text-align: left;
+        }}
+        
+        .back-link {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 12px 24px;
+            background: #000000;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            float: right;
+        }}
+        
+        .back-link:hover {{
+            background: #333333;
+            text-decoration: none;
+            color: white;
+        }}
+        
+        .button-container {{
+            text-align: right;
+            clear: both;
+        }}
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">{status_code}</div>
+        <div class="error-message">{friendly_detail}</div>
+        <div class="error-detail">{detail}</div>
+        <div class="button-container">
+            <a href="#" onclick="history.back(); return false;" class="back-link">
+                <span>←</span>
+                <span>Back</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>"""
+        
+        return HTMLResponse(content=html_content, status_code=status_code)
 
     def run(self, host: str = "127.0.0.1", port: int = 8000, **kwargs: Any) -> None:
         """

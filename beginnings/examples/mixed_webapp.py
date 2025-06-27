@@ -70,7 +70,7 @@ NEXT_TASK_ID = 4
 def create_mixed_app() -> App:
     """Create and configure the mixed web application."""
     # Initialize the Beginnings app
-    app = App(config_dir="config", environment="development")
+    app = App()
     
     # Create HTML router for web interface
     html_router = app.create_html_router()
@@ -434,4 +434,4 @@ if __name__ == "__main__":
     print("API Endpoints: http://localhost:8002/api/tasks")
     print("API Stats: http://localhost:8002/api/stats")
     
-    app.run(host="127.0.0.1", port=8002, reload=True)
+    app.run(host="127.0.0.1", port=8002, reload=False)

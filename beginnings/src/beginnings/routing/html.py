@@ -307,6 +307,169 @@ class HTMLRouter(FastAPIRouter):
         """
         return self._static_manager
 
+    def render_error_page(
+        self,
+        status_code: int,
+        detail: str,
+        request: Request | None = None
+    ) -> HTMLResponse:
+        """
+        Render an error page using templates or fallback HTML.
+
+        Args:
+            status_code: HTTP status code
+            detail: Error detail message
+            request: Optional request object for context
+
+        Returns:
+            HTMLResponse with error page
+        """
+        context = {
+            "status_code": status_code,
+            "detail": detail,
+            "title": f"Error {status_code}"
+        }
+
+        # Try to render with template engine first
+        if self._template_engine is not None:
+            try:
+                # Try specific error template first (e.g., "errors/404.html")
+                template_name = f"errors/{status_code}.html"
+                if self._template_engine.template_exists(template_name):
+                    return self._template_engine.render_template_response(
+                        template_name, context, status_code=status_code
+                    )
+                
+                # Try generic error template
+                if self._template_engine.template_exists("errors/error.html"):
+                    return self._template_engine.render_template_response(
+                        "errors/error.html", context, status_code=status_code
+                    )
+            except Exception:
+                # Template rendering failed, fall back to basic HTML
+                pass
+
+        # Fallback to basic HTML error page
+        error_html = self._create_basic_error_html(status_code, detail)
+        return HTMLResponse(content=error_html, status_code=status_code)
+
+    def _create_basic_error_html(self, status_code: int, detail: str) -> str:
+        """Create a basic HTML error page when templates aren't available."""
+        status_messages = {
+            404: "Page Not Found",
+            500: "Internal Server Error",
+            403: "Forbidden",
+            401: "Unauthorized",
+            400: "Bad Request"
+        }
+        
+        title = status_messages.get(status_code, "Error")
+        
+        # Clear, friendly error messages
+        friendly_messages = {
+            404: "The page you're looking for isn't here",
+            500: "Something went wrong on our end",
+            403: "You don't have permission to access this page",
+            401: "Please log in to continue",
+            400: "The request couldn't be processed"
+        }
+        
+        friendly_detail = friendly_messages.get(status_code, "An unexpected error occurred")
+        
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{status_code} - {title}</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f8f9fa;
+            color: #000000;
+            padding: 20px;
+        }}
+        
+        .error-container {{
+            width: auto;
+            max-width: 90vw;
+        }}
+        
+        .error-code {{
+            font-size: clamp(4rem, 20vw, 8rem);
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            color: #000000;
+            text-align: left;
+        }}
+        
+        .error-message {{
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            margin-bottom: 1rem;
+            color: #404040;
+            font-weight: 500;
+            text-align: left;
+        }}
+        
+        .error-detail {{
+            font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+            margin-bottom: 2rem;
+            color: #666666;
+            line-height: 1.5;
+            text-align: left;
+        }}
+        
+        .back-link {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 12px 24px;
+            background: #000000;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            float: right;
+        }}
+        
+        .back-link:hover {{
+            background: #333333;
+            text-decoration: none;
+            color: white;
+        }}
+        
+        .button-container {{
+            text-align: right;
+            clear: both;
+        }}
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">{status_code}</div>
+        <div class="error-message">{friendly_detail}</div>
+        <div class="error-detail">{detail}</div>
+        <div class="button-container">
+            <a href="#" onclick="history.back(); return false;" class="back-link">
+                <span>←</span>
+                <span>Back</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>"""
+
 
 
 def create_html_response(content: str, status_code: int = 200) -> HTMLResponse:

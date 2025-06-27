@@ -58,10 +58,10 @@ NEXT_POST_ID = 3
 def create_blog_app() -> App:
     """Create and configure the blog application."""
     # Initialize the Beginnings app
-    app = App(config_dir="config", environment="development")
+    app = App()
     
     # Create HTML router for browser-facing pages
-    html_router = app.create_html_router(prefix="/blog")
+    html_router = app.create_html_router()
     
     # Create API router for programmatic access
     api_router = app.create_api_router(prefix="/api/v1")
@@ -75,7 +75,7 @@ def create_blog_app() -> App:
             if post.published:
                 posts_html += f"""
                     <article>
-                        <h2><a href="/blog/posts/{post.id}">{post.title}</a></h2>
+                        <h2><a href="/posts/{post.id}">{post.title}</a></h2>
                         <p>By {post.author} on {post.created_at.strftime('%B %d, %Y')}</p>
                         <p>{post.content[:100]}...</p>
                     </article>
@@ -98,7 +98,7 @@ def create_blog_app() -> App:
             <header>
                 <h1>My Blog</h1>
                 <nav>
-                    <a href="/blog/">Home</a> | 
+                    <a href="/">Home</a> | 
                     <a href="/blog/about">About</a> |
                     <a href="/api/v1/posts">API</a>
                 </nav>
@@ -133,7 +133,7 @@ def create_blog_app() -> App:
         </head>
         <body>
             <header>
-                <nav><a href="/blog/">&larr; Back to Blog</a></nav>
+                <nav><a href="/">&larr; Back to Blog</a></nav>
             </header>
             <main>
                 <article>
@@ -163,7 +163,7 @@ def create_blog_app() -> App:
         </head>
         <body>
             <header>
-                <nav><a href="/blog/">&larr; Back to Blog</a></nav>
+                <nav><a href="/">&larr; Back to Blog</a></nav>
             </header>
             <main>
                 <h1>About This Blog</h1>
@@ -233,6 +233,17 @@ def create_blog_app() -> App:
         
         del BLOG_POSTS[post_id]
         return {"message": "Post deleted successfully"}
+
+    # Test route to demonstrate error handling
+    @html_router.get("/test-error")
+    def test_error() -> None:
+        """Test route that throws an error."""
+        raise HTTPException(status_code=404, detail="This is a test error page")
+
+    @api_router.get("/test-error")
+    def test_api_error() -> None:
+        """Test API route that throws an error."""
+        raise HTTPException(status_code=404, detail="This is a test API error")
     
     # Include routers in the app
     app.include_router(html_router)
@@ -248,8 +259,8 @@ app = create_blog_app()
 if __name__ == "__main__":
     # Run the blog application
     print("Starting Blog Application...")
-    print("HTML Interface: http://localhost:8000/blog/")
+    print("HTML Interface: http://localhost:8000/")
     print("API Documentation: http://localhost:8000/docs")
     print("API Endpoints: http://localhost:8000/api/v1/posts")
     
-    app.run(host="127.0.0.1", port=8000, reload=True)
+    app.run(host="127.0.0.1", port=8888, reload=False)

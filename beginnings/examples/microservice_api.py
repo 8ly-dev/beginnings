@@ -61,7 +61,7 @@ START_TIME = time.time()
 def create_microservice_app() -> App:
     """Create and configure the microservice application."""
     # Initialize the Beginnings app
-    app = App(config_dir="config", environment="production")
+    app = App()
     
     # Create API router for all endpoints
     api_router = app.create_api_router(prefix="/api/v1")
