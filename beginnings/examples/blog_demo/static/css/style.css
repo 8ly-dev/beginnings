@@ -15,6 +15,12 @@ body {
     flex-direction: column;
 }
 
+body.menu-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
+
 /* Sticky Navigation */
 .sticky-nav {
     position: sticky;
@@ -60,6 +66,7 @@ body {
     display: flex;
     gap: 30px;
     align-items: center;
+    position: relative;
 }
 
 .container {
@@ -104,8 +111,9 @@ body {
     transition: background-color 300ms ease;
 }
 
-.menu-toggle:hover {
-    background: rgba(0, 0, 0, 0.1);
+.menu-toggle:focus {
+    outline: none;
+    background: none;
 }
 
 .menu-icon {
@@ -127,21 +135,27 @@ body {
 }
 
 .menu-icon:nth-child(3) {
+    top: 11px;
+}
+
+.menu-icon:nth-child(4) {
     top: 16px;
 }
 
 .menu-toggle.active .menu-icon:nth-child(1) {
-    top: 11px;
-    transform: rotate(45deg);
-}
-
-.menu-toggle.active .menu-icon:nth-child(2) {
     opacity: 0;
 }
 
+.menu-toggle.active .menu-icon:nth-child(2) {
+    transform: rotate(45deg);
+}
+
 .menu-toggle.active .menu-icon:nth-child(3) {
-    top: 11px;
     transform: rotate(-45deg);
+}
+
+.menu-toggle.active .menu-icon:nth-child(4) {
+    opacity: 0;
 }
 
 /* Mobile Menu Base Styles */
@@ -435,9 +449,6 @@ body {
         background: transparent;
     }
     
-    .menu-toggle:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
     
     .menu-icon {
         background: #ffffff;
@@ -578,6 +589,11 @@ body {
         padding-top: 40px;
     }
     
+    .navigation .nav-link,
+    .navigation .user-info {
+        display: none;
+    }
+    
     .menu-toggle {
         display: flex;
     }
@@ -618,6 +634,7 @@ body {
         font-size: 1.2rem;
         color: #666666;
         opacity: 0;
+        order: 999;
     }
     
     

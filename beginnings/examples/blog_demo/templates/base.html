@@ -12,7 +12,17 @@
             <div class="nav-container">
                 <a href="/" class="nav-title">Blog Demo</a>
                 <div class="navigation">
+                    <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
+                    <a href="/about" class="nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
+                    {% if current_user %}
+                        <a href="/new-post" class="nav-link {% if active_page == 'new_post' %}active{% endif %}">New Post</a>
+                        <span class="user-info">{{ current_user }}</span>
+                        <a href="/logout" class="nav-link">Logout</a>
+                    {% else %}
+                        <a href="/login" class="nav-link {% if active_page == 'login' %}active{% endif %}">Login</a>
+                    {% endif %}
                     <button class="menu-toggle" aria-label="Toggle menu">
+                        <span class="menu-icon"></span>
                         <span class="menu-icon"></span>
                         <span class="menu-icon"></span>
                         <span class="menu-icon"></span>
@@ -63,24 +73,52 @@ document.addEventListener('DOMContentLoaded', function() {
     const stickyNav = document.querySelector('.sticky-nav');
     const navLinks = navMenu.querySelectorAll('.nav-link, .user-info');
     
+    let scrollPosition = 0;
+    
     function closeMenu() {
         navMenu.classList.remove('active');
         menuToggle.classList.remove('active');
         stickyNav.classList.remove('menu-open');
+        
+        // Restore scroll
+        document.body.classList.remove('menu-open');
+        document.body.style.top = '';
+        window.scrollTo(0, scrollPosition);
+        
         navLinks.forEach(link => {
             link.style.animation = '';
         });
     }
     
     function openMenu() {
+        // Save current scroll position
+        scrollPosition = window.pageYOffset;
+        
         navMenu.classList.add('active');
         menuToggle.classList.add('active');
         stickyNav.classList.add('menu-open');
         
-        // Animate links with stagger
+        // Lock scroll at current position
+        document.body.style.top = `-${scrollPosition}px`;
+        document.body.classList.add('menu-open');
+        
+        // Animate links with stagger based on visual order (not DOM order)
         const animatableItems = Array.from(navLinks);
+        const userInfo = navMenu.querySelector('.user-info');
+        
         animatableItems.forEach((link, index) => {
-            link.style.animation = `slideInFromTop 0.4s ease-out ${index * 0.1}s both`;
+            let delay = index * 0.1;
+            
+            // If this is the user info and we're on mobile, animate it last
+            if (link === userInfo && window.innerWidth <= 768) {
+                delay = (animatableItems.length - 1) * 0.1;
+            }
+            // If this is NOT the user info but comes after it in DOM, adjust delay
+            else if (userInfo && index > Array.from(animatableItems).indexOf(userInfo) && window.innerWidth <= 768) {
+                delay = (index - 1) * 0.1;
+            }
+            
+            link.style.animation = `slideInFromTop 0.4s ease-out ${delay}s both`;
         });
     }
     
@@ -93,9 +131,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Close menu when clicking outside
+    // Close menu when clicking outside or on overlay background
     document.addEventListener('click', function(e) {
         if (!menuToggle.contains(e.target) && !navMenu.contains(e.target)) {
+            closeMenu();
+        }
+    });
+    
+    // Close menu when clicking on overlay background (not on nav items)
+    navMenu.addEventListener('click', function(e) {
+        if (e.target === navMenu) {
             closeMenu();
         }
     });
@@ -104,6 +149,13 @@ document.addEventListener('DOMContentLoaded', function() {
     navLinks.forEach(link => {
         if (link.tagName === 'A') {
             link.addEventListener('click', closeMenu);
+        }
+    });
+    
+    // Close menu when resizing from mobile to desktop
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768 && navMenu.classList.contains('active')) {
+            closeMenu();
         }
     });
 });
