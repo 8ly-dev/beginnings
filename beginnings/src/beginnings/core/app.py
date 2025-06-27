@@ -146,6 +146,22 @@ class App(FastAPI):
         Returns:
             Configured HTML router
         """
+        # Handle case where config_loader is None (fallback configuration)
+        if self._config_loader is None:
+            # Create a minimal mock config loader for the router
+            class MockConfigLoader:
+                def load_config(self):
+                    return self._config
+            
+            mock_loader = MockConfigLoader()
+            mock_loader._config = self._config
+            
+            return HTMLRouter(
+                config_loader=mock_loader,
+                extension_manager=self._extension_manager,
+                **router_kwargs
+            )
+        
         return HTMLRouter(
             config_loader=self._config_loader,
             extension_manager=self._extension_manager,
@@ -162,6 +178,22 @@ class App(FastAPI):
         Returns:
             Configured API router
         """
+        # Handle case where config_loader is None (fallback configuration)
+        if self._config_loader is None:
+            # Create a minimal mock config loader for the router
+            class MockConfigLoader:
+                def load_config(self):
+                    return self._config
+            
+            mock_loader = MockConfigLoader()
+            mock_loader._config = self._config
+            
+            return APIRouter(
+                config_loader=mock_loader,
+                extension_manager=self._extension_manager,
+                **router_kwargs
+            )
+        
         return APIRouter(
             config_loader=self._config_loader,
             extension_manager=self._extension_manager,
