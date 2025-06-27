@@ -19,6 +19,7 @@ from beginnings.extensions.auth.providers.base import (
 )
 from beginnings.extensions.auth.providers.jwt_provider import JWTProvider
 from beginnings.extensions.auth.providers.session_provider import SessionProvider
+from beginnings.extensions.auth.providers.oauth_provider import OAuthProvider
 from beginnings.extensions.auth.rbac import RBACManager
 from beginnings.extensions.base import BaseExtension
 
@@ -56,6 +57,9 @@ class AuthExtension(BaseExtension):
         
         if "session" in providers_config:
             self.providers["session"] = SessionProvider(providers_config["session"])
+        
+        if "oauth" in providers_config:
+            self.providers["oauth"] = OAuthProvider(providers_config["oauth"])
         
         # Set user lookup function for providers if provided
         if hasattr(self, '_user_lookup_function'):
