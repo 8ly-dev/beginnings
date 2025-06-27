@@ -12,19 +12,28 @@
             <div class="nav-container">
                 <a href="/" class="nav-title">Blog Demo</a>
                 <div class="navigation">
-                    <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
-                    <a href="/about" class="nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
-                    {% if current_user %}
-                        <a href="/new-post" class="nav-link {% if active_page == 'new_post' %}active{% endif %}">New Post</a>
-                        <span class="user-info">{{ current_user }}</span>
-                        <a href="/logout" class="nav-link">Logout</a>
-                    {% else %}
-                        <a href="/login" class="nav-link {% if active_page == 'login' %}active{% endif %}">Login</a>
-                    {% endif %}
+                    <button class="menu-toggle" aria-label="Toggle menu">
+                        <span class="menu-icon"></span>
+                        <span class="menu-icon"></span>
+                        <span class="menu-icon"></span>
+                    </button>
                 </div>
             </div>
         </div>
     </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="nav-menu">
+        <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
+        <a href="/about" class="nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
+        {% if current_user %}
+            <a href="/new-post" class="nav-link {% if active_page == 'new_post' %}active{% endif %}">New Post</a>
+            <span class="user-info">{{ current_user }}</span>
+            <a href="/logout" class="nav-link">Logout</a>
+        {% else %}
+            <a href="/login" class="nav-link {% if active_page == 'login' %}active{% endif %}">Login</a>
+        {% endif %}
+    </div>
 
     <div class="container">
         <div class="page-container">
@@ -46,5 +55,58 @@
             </div>
         </div>
     </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const menuToggle = document.querySelector('.menu-toggle');
+    const navMenu = document.querySelector('.nav-menu');
+    const stickyNav = document.querySelector('.sticky-nav');
+    const navLinks = navMenu.querySelectorAll('.nav-link, .user-info');
+    
+    function closeMenu() {
+        navMenu.classList.remove('active');
+        menuToggle.classList.remove('active');
+        stickyNav.classList.remove('menu-open');
+        navLinks.forEach(link => {
+            link.style.animation = '';
+        });
+    }
+    
+    function openMenu() {
+        navMenu.classList.add('active');
+        menuToggle.classList.add('active');
+        stickyNav.classList.add('menu-open');
+        
+        // Animate links with stagger
+        const animatableItems = Array.from(navLinks);
+        animatableItems.forEach((link, index) => {
+            link.style.animation = `slideInFromTop 0.4s ease-out ${index * 0.1}s both`;
+        });
+    }
+    
+    menuToggle.addEventListener('click', function() {
+        const isOpen = navMenu.classList.contains('active');
+        if (isOpen) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!menuToggle.contains(e.target) && !navMenu.contains(e.target)) {
+            closeMenu();
+        }
+    });
+    
+    // Close menu when clicking on a link
+    navLinks.forEach(link => {
+        if (link.tagName === 'A') {
+            link.addEventListener('click', closeMenu);
+        }
+    });
+});
+</script>
 </body>
 </html>
