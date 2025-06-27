@@ -62,6 +62,97 @@ class HTMLRouter(FastAPIRouter):
         self._static_manager: StaticFileManager | None = None
         self._init_static_manager(config)
 
+    def get(self, path: str, **kwargs: Any) -> Callable:
+        """
+        Override get method to apply HTML-specific defaults.
+
+        Args:
+            path: Route path
+            **kwargs: Additional route parameters
+        """
+        if "include_in_schema" not in kwargs:
+            kwargs["include_in_schema"] = False
+
+        return super().get(path, **kwargs)
+
+    def post(self, path: str, **kwargs: Any) -> Callable:
+        """
+        Override post method to apply HTML-specific defaults.
+
+        Args:
+            path: Route path
+            **kwargs: Additional route parameters
+        """
+        if "include_in_schema" not in kwargs:
+            kwargs["include_in_schema"] = False
+
+        return super().post(path, **kwargs)
+
+    def put(self, path: str, **kwargs: Any) -> Callable:
+        """
+        Override put method to apply HTML-specific defaults.
+
+        Args:
+            path: Route path
+            **kwargs: Additional route parameters
+        """
+        raise NotImplementedError(
+            "PUT method not available for HTMLRouter. "
+            "Use create_api_router() for REST API endpoints that require PUT operations."
+        )
+
+    def patch(self, path: str, **kwargs: Any) -> Callable:
+        """
+        Override patch method to apply HTML-specific defaults.
+
+        Args:
+            path: Route path
+            **kwargs: Additional route parameters
+        """
+        raise NotImplementedError(
+            "PATCH method not available for HTMLRouter. "
+            "Use create_api_router() for REST API endpoints that require PATCH operations."
+        )
+
+    def head(self, path: str, **kwargs: Any) -> Callable:
+        """
+        Override head method to apply HTML-specific defaults.
+
+        Args:
+            path: Route path
+            **kwargs: Additional route parameters
+        """
+        if "include_in_schema" not in kwargs:
+            kwargs["include_in_schema"] = False
+
+        return super().head(path, **kwargs)
+
+    def options(self, path: str, **kwargs: Any) -> Callable:
+        """
+        Override options method to apply HTML-specific defaults.
+
+        Args:
+            path: Route path
+            **kwargs: Additional route parameters
+        """
+        raise NotImplementedError(
+            "OPTIONS method not available for HTMLRouter. "
+            "Use create_api_router() for REST API endpoints that require OPTIONS operations."
+        )
+
+    def delete(self, path: str, **kwargs: Any) -> Callable:
+        """
+        Override delete method to apply HTML-specific defaults.
+
+        Args:
+            path: Route path
+            **kwargs: Additional route parameters
+        """
+        raise NotImplementedError(
+            "DELETE method not available for HTMLRouter. "
+            "Use create_api_router() for REST API endpoints that require DELETE operations."
+        )
+
     def add_api_route(self, path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None:
         """
         Override add_api_route to apply configuration and middleware.
