@@ -247,4 +247,4 @@ if __name__ == "__main__":
     print("API Documentation: http://localhost:8000/docs")
     print("API Endpoints: http://localhost:8000/api/v1/posts")
     
-    app.run(host="127.0.0.1", port=8888, reload=False)
+    app.run(host="0.0.0.0", port=8888, reload=False)

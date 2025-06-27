@@ -21,6 +21,9 @@ body {
     top: 0;
     z-index: 100;
     padding: 15px 0;
+    background: rgba(248, 249, 250, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 /* Shared container for consistent alignment */
@@ -261,7 +264,7 @@ body {
 
 /* Footer */
 .footer {
-    margin-top: auto;
+    margin-top: 120px;
     padding: 120px 0;
     background: #f0f0f0;
     text-align: left;
@@ -344,6 +347,10 @@ body {
     
     .user-info {
         color: #999999;
+    }
+    
+    .sticky-nav {
+        background: rgba(26, 26, 26, 0.8);
     }
     
     .post-card {
@@ -457,12 +464,16 @@ body {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+    .page-container {
+        padding: 0 20px;
+    }
+    
     .container {
-        padding: 40px 20px;
+        padding-top: 40px;
     }
     
     .navigation {
-        gap: 30px;
+        gap: 20px;
         flex-wrap: wrap;
     }
     
@@ -494,17 +505,18 @@ body {
     }
     
     .footer {
-        margin-top: 80px;
-        padding-top: 30px;
+        padding: 80px 0;
     }
     
     .footer-content {
         flex-direction: column;
         gap: 20px;
-        text-align: left;
+        text-align: center;
     }
     
+    .footer-left,
     .footer-right {
-        text-align: left;
+        width: 100%;
+        text-align: center;
     }
 }
