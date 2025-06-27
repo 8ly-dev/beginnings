@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Login - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 2rem auto;">
+    <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #333;">Welcome Back</h2>
+        
+        <form method="post" action="/login" style="margin-bottom: 2rem;">
+            <!-- CSRF token automatically injected by framework -->
+            {{ csrf_token() }}
+            
+            <div style="margin-bottom: 1rem;">
+                <label for="username" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Username</label>
+                <input type="text" id="username" name="username" required 
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #dee2e6; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Password</label>
+                <input type="password" id="password" name="password" required
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #dee2e6; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            
+            <button type="submit" class="btn" style="width: 100%; padding: 0.75rem; font-size: 1rem;">
+                🔐 Sign In
+            </button>
+        </form>
+
+        <div class="alert alert-info">
+            <strong>🧪 Demo Users:</strong><br>
+            {% for user in demo_users %}
+            <strong>{{ user }}</strong>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            <br><em>Use any password for demo purposes</em>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
+            <h4 style="margin-bottom: 0.5rem; color: #333;">🛡️ Security Features Active</h4>
+            <ul style="margin: 0; padding-left: 1.5rem; color: #6c757d; font-size: 0.9rem;">
+                <li>CSRF protection on form submission</li>
+                <li>Rate limiting: 5 attempts per 5 minutes</li>
+                <li>Session-based authentication</li>
+                <li>Security headers with CSP nonces</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+document.getElementById('username').focus();
+
+document.querySelector('form').addEventListener('submit', function() {
+    console.log('🛡️ Form submission protected with CSRF token:', getCSRFToken()?.substring(0, 10) + '...');
+});
+</script>
+{% endblock %}

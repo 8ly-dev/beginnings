@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site_title | default('Blog Demo') }}{% endblock %}</title>
+    
+    <!-- CSRF Token for AJAX requests (auto-injected by framework) -->
+    {% if csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endif %}
+    
+    <!-- Security Headers: CSP Nonce support for inline styles -->
+    {% if request.state.csp_style_nonce %}
+    <style nonce="{{ request.state.csp_style_nonce }}">
+        /* Critical inline styles with CSP nonce */
+        .loading { display: none; }
+        .framework-badge { 
+            position: fixed; 
+            bottom: 20px; 
+            right: 20px; 
+            background: #007bff; 
+            color: white; 
+            padding: 8px 12px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            z-index: 1000;
+            opacity: 0.9;
+        }
+    </style>
+    {% endif %}
+    
+    <!-- External stylesheets -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- Additional head content -->
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Framework Features Badge (showing what's enabled) -->
+    <div class="framework-badge" title="Beginnings Framework Features">
+        🚀 Auth | 🛡️ CSRF | ⚡ Rate Limit | 🔒 Security
+    </div>
+
+    <nav class="sticky-nav">
+        <div class="page-container">
+            <div class="nav-container">
+                <a href="/" class="nav-title">{{ site_name | default('Blog Demo') }}</a>
+                <div class="navigation">
+                    <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
+                    <a href="/about" class="nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
+                    <a href="/docs" class="nav-link" target="_blank">API</a>
+                    {% if current_user %}
+                        <a href="/new-post" class="nav-link {% if active_page == 'new_post' %}active{% endif %}">New Post</a>
+                        <span class="user-info">{{ current_user.username if current_user.username else current_user }}</span>
+                        <a href="/logout" class="nav-link">Logout</a>
+                    {% else %}
+                        <a href="/login" class="nav-link {% if active_page == 'login' %}active{% endif %}">Login</a>
+                        <a href="/register" class="nav-link {% if active_page == 'register' %}active{% endif %}">Register</a>
+                    {% endif %}
+                    <button class="menu-toggle" aria-label="Toggle menu">
+                        <span class="menu-icon"></span>
+                        <span class="menu-icon"></span>
+                        <span class="menu-icon"></span>
+                        <span class="menu-icon"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="nav-menu">
+        <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
+        <a href="/about" class="nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
+        <a href="/docs" class="nav-link" target="_blank">API</a>
+        {% if current_user %}
+            <a href="/new-post" class="nav-link {% if active_page == 'new_post' %}active{% endif %}">New Post</a>
+            <span class="user-info">{{ current_user.username if current_user.username else current_user }}</span>
+            <a href="/logout" class="nav-link">Logout</a>
+        {% else %}
+            <a href="/login" class="nav-link {% if active_page == 'login' %}active{% endif %}">Login</a>
+            <a href="/register" class="nav-link {% if active_page == 'register' %}active{% endif %}">Register</a>
+        {% endif %}
+    </div>
+
+    <!-- Flash messages area (for form feedback) -->
+    {% if flash_messages %}
+    <div class="flash-messages">
+        {% for message in flash_messages %}
+        <div class="flash-message flash-{{ message.type }}">
+            {{ message.text }}
+            <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="container">
+        <div class="page-container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="page-container">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <div class="footer-text">Built with the Beginnings framework</div>
+                    <a href="https://beginnings.8ly.xyz/docs" class="docs-link" target="_blank">View Documentation</a>
+                </div>
+                <div class="footer-right">
+                    <div class="copyright">© 2025 <a href="https://8ly.xyz" class="footer-link" target="_blank">8ly LLC</a></div>
+                    <div class="license">Made available under the <a href="https://opensource.org/licenses/MIT" class="footer-link" target="_blank">MIT license</a></div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- CSRF Token helper function for JavaScript -->
+    {% if csrf_token %}
+    <script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+        // CSRF token helper function (provided by framework)
+        function getCSRFToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : null;
+        }
+        
+        // Automatically add CSRF token to all form submissions
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form[method="post"], form[method="POST"]');
+            forms.forEach(form => {
+                // Skip if form already has CSRF token
+                if (form.querySelector('input[name="csrf_token"]')) {
+                    return;
+                }
+                
+                const token = getCSRFToken();
+                if (token) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'csrf_token';
+                    input.value = token;
+                    form.appendChild(input);
+                }
+            });
+        });
+    </script>
+    {% endif %}
+
+    <!-- Navigation menu JavaScript with CSP nonce -->
+    <script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+    document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.querySelector('.menu-toggle');
+        const navMenu = document.querySelector('.nav-menu');
+        const stickyNav = document.querySelector('.sticky-nav');
+        const navLinks = navMenu.querySelectorAll('.nav-link, .user-info');
+        
+        let scrollPosition = 0;
+        
+        function closeMenu() {
+            navMenu.classList.remove('active');
+            menuToggle.classList.remove('active');
+            stickyNav.classList.remove('menu-open');
+            
+            // Restore scroll
+            document.body.classList.remove('menu-open');
+            document.body.style.top = '';
+            window.scrollTo(0, scrollPosition);
+            
+            navLinks.forEach(link => {
+                link.style.animation = '';
+            });
+        }
+        
+        function openMenu() {
+            // Save current scroll position
+            scrollPosition = window.pageYOffset;
+            
+            navMenu.classList.add('active');
+            menuToggle.classList.add('active');
+            stickyNav.classList.add('menu-open');
+            
+            // Lock scroll at current position
+            document.body.style.top = `-${scrollPosition}px`;
+            document.body.classList.add('menu-open');
+            
+            // Animate links with stagger
+            navLinks.forEach((link, index) => {
+                let delay = index * 0.1;
+                link.style.animation = `slideInFromTop 0.4s ease-out ${delay}s both`;
+            });
+        }
+        
+        if (menuToggle && navMenu) {
+            menuToggle.addEventListener('click', function() {
+                const isOpen = navMenu.classList.contains('active');
+                if (isOpen) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!menuToggle.contains(e.target) && !navMenu.contains(e.target)) {
+                    closeMenu();
+                }
+            });
+            
+            // Close menu when clicking on a link
+            navLinks.forEach(link => {
+                if (link.tagName === 'A') {
+                    link.addEventListener('click', closeMenu);
+                }
+            });
+            
+            // Close menu when resizing to desktop
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768 && navMenu.classList.contains('active')) {
+                    closeMenu();
+                }
+            });
+        }
+        
+        // Auto-hide framework badge after 5 seconds
+        setTimeout(() => {
+            const badge = document.querySelector('.framework-badge');
+            if (badge) {
+                badge.style.transition = 'opacity 0.5s ease';
+                badge.style.opacity = '0.3';
+            }
+        }, 5000);
+    });
+    </script>
+
+    <!-- Additional JavaScript -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

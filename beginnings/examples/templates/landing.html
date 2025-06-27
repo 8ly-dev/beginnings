@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 4rem 2rem;">
+    <h1 style="font-size: 3rem; font-weight: 900; color: #007bff; margin-bottom: 1rem;">
+        🚀 Enhanced Task Manager
+    </h1>
+    <p style="font-size: 1.3rem; color: #6c757d; margin-bottom: 2rem;">
+        Demonstrating the complete power of the Beginnings Framework
+    </p>
+    
+    <div style="display: flex; justify-content: center; gap: 1rem; margin: 2rem 0;">
+        <a href="/login" class="btn" style="font-size: 1.1rem; padding: 1rem 2rem;">
+            🔐 Login to Dashboard
+        </a>
+        <a href="/docs" class="btn btn-outline" style="font-size: 1.1rem; padding: 1rem 2rem;" target="_blank">
+            📚 API Documentation
+        </a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 4rem 0; text-align: left;">
+        <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="color: #007bff; margin-bottom: 1rem;">🌐 Dual Interface</h3>
+            <p>Both HTML web interface and REST API sharing the same backend and security features.</p>
+            <ul style="color: #6c757d;">
+                <li>Session auth for web interface</li>
+                <li>JWT auth for API access</li>
+                <li>Shared user context and permissions</li>
+            </ul>
+        </div>
+
+        <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="color: #28a745; margin-bottom: 1rem;">🛡️ Complete Security</h3>
+            <p>Enterprise-grade security features built into every request.</p>
+            <ul style="color: #6c757d;">
+                <li>CSRF protection for all forms</li>
+                <li>Rate limiting with multiple algorithms</li>
+                <li>Security headers with CSP nonces</li>
+            </ul>
+        </div>
+
+        <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="color: #ffc107; margin-bottom: 1rem;">⚙️ Configuration-Driven</h3>
+            <p>Everything configured through YAML with zero boilerplate code.</p>
+            <ul style="color: #6c757d;">
+                <li>Route-specific security policies</li>
+                <li>Role-based access control</li>
+                <li>Environment-specific settings</li>
+            </ul>
+        </div>
+    </div>
+
+    <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; border: 1px solid #dee2e6; margin: 2rem 0;">
+        <h3 style="margin-bottom: 1rem;">📊 Current Stats</h3>
+        <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: 700; color: #007bff;">{{ total_tasks }}</div>
+                <div style="color: #6c757d;">Total Tasks</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: 700; color: #28a745;">{{ completed_tasks }}</div>
+                <div style="color: #6c757d;">Completed</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: 700; color: #ffc107;">{{ total_tasks - completed_tasks }}</div>
+                <div style="color: #6c757d;">Pending</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>🧪 Demo Application:</strong> This is a demonstration of the Beginnings framework's capabilities. 
+        Login with any of the demo users: <strong>admin</strong>, <strong>manager</strong>, or <strong>user</strong> 
+        (any password works for the demo).
+    </div>
+</div>
+{% endblock %}

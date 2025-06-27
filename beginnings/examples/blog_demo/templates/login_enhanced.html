@@ -1,0 +1,407 @@
+{% extends "base_enhanced.html" %}
+
+{% block title %}Login - {{ site_name | default('Blog Demo') }}{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">Welcome Back</h1>
+            <p class="auth-subtitle">Sign in to your account to continue</p>
+        </div>
+
+        <!-- Login Form with CSRF Protection -->
+        <form method="post" action="/login" class="auth-form">
+            <!-- CSRF Token (auto-injected by framework) -->
+            {{ csrf_token() }}
+            
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    required 
+                    class="form-input"
+                    placeholder="Enter your username"
+                    autocomplete="username"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    required 
+                    class="form-input"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                    minlength="8"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="remember_me" class="checkbox-input">
+                    <span class="checkbox-text">Remember me for 30 days</span>
+                </label>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-block">
+                    Sign In
+                </button>
+            </div>
+        </form>
+
+        <div class="auth-footer">
+            <p class="auth-link-text">
+                Don't have an account? 
+                <a href="/register" class="auth-link">Create one here</a>
+            </p>
+            <p class="auth-link-text">
+                <a href="/forgot-password" class="auth-link">Forgot your password?</a>
+            </p>
+        </div>
+
+        <!-- Security Features Info -->
+        <div class="security-info">
+            <div class="security-badge">
+                <span class="security-icon">🛡️</span>
+                <div class="security-text">
+                    <strong>Protected by Beginnings Framework</strong>
+                    <small>CSRF protection, rate limiting, and secure headers enabled</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Information Panel -->
+<div class="demo-info">
+    <div class="demo-card">
+        <h3>🔐 Authentication Demo</h3>
+        <p>This login form demonstrates:</p>
+        <ul>
+            <li><strong>CSRF Protection:</strong> Automatic token injection prevents cross-site attacks</li>
+            <li><strong>Rate Limiting:</strong> Limited to 5 attempts per 5 minutes per IP</li>
+            <li><strong>Security Headers:</strong> CSP, HSTS, and other security headers protect the page</li>
+            <li><strong>Session Management:</strong> Secure session handling with HttpOnly cookies</li>
+        </ul>
+        <p><strong>Demo Login:</strong> Use any username/password combination to see the authentication flow.</p>
+        
+        <div class="demo-tech">
+            <h4>Framework Features in Use:</h4>
+            <div class="tech-badges">
+                <span class="tech-badge">AuthExtension</span>
+                <span class="tech-badge">CSRFExtension</span>
+                <span class="tech-badge">RateLimitExtension</span>
+                <span class="tech-badge">SecurityHeadersExtension</span>
+                <span class="tech-badge">TemplateEngine</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Form validation and UX enhancements -->
+<script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.auth-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    
+    // Enhanced form submission with loading state
+    form.addEventListener('submit', function(e) {
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing In...';
+        submitBtn.classList.add('loading');
+        
+        // Log CSRF token for demo purposes (in console)
+        const csrfToken = getCSRFToken();
+        if (csrfToken) {
+            console.log('🛡️ CSRF Token:', csrfToken.substring(0, 10) + '...');
+            console.log('✅ Form protected against CSRF attacks');
+        }
+        
+        // Re-enable button after delay (for demo, in case of client-side validation failure)
+        setTimeout(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+            submitBtn.classList.remove('loading');
+        }, 3000);
+    });
+    
+    // Real-time password validation
+    const passwordInput = document.getElementById('password');
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        const isValid = password.length >= 8;
+        
+        this.classList.toggle('valid', isValid);
+        this.classList.toggle('invalid', password.length > 0 && !isValid);
+    });
+    
+    // Auto-focus first input
+    document.getElementById('username').focus();
+});
+</script>
+{% endblock %}
+
+{% block head %}
+<style{% if request.state.csp_style_nonce %} nonce="{{ request.state.csp_style_nonce }}"{% endif %}>
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 80vh;
+    padding: 40px 20px;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    color: #666;
+    font-size: 1rem;
+}
+
+.auth-form .form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-input.valid {
+    border-color: #28a745;
+}
+
+.form-input.invalid {
+    border-color: #dc3545;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.checkbox-input {
+    margin-right: 8px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e1e5e9;
+}
+
+.auth-link-text {
+    margin: 8px 0;
+    color: #666;
+}
+
+.auth-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-link:hover {
+    text-decoration: underline;
+}
+
+.security-info {
+    margin-top: 20px;
+}
+
+.security-badge {
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.security-icon {
+    font-size: 1.2rem;
+    margin-right: 10px;
+}
+
+.security-text strong {
+    display: block;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.security-text small {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.demo-info {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 500px;
+    width: 100%;
+}
+
+.demo-card h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.demo-card ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.demo-card li {
+    margin: 8px 0;
+    color: #555;
+}
+
+.demo-tech {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+.tech-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.tech-badge {
+    background: #007bff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .auth-card {
+        background: #2d3748;
+        color: white;
+    }
+    
+    .auth-title {
+        color: white;
+    }
+    
+    .form-input {
+        background: #4a5568;
+        border-color: #4a5568;
+        color: white;
+    }
+    
+    .form-input::placeholder {
+        color: #a0aec0;
+    }
+    
+    .demo-info {
+        background: #2d3748;
+        color: white;
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .auth-container {
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+    
+    .auth-card, .demo-info {
+        max-width: 100%;
+    }
+}
+</style>
+{% endblock %}

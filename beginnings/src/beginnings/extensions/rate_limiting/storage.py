@@ -126,27 +126,44 @@ class MemoryRateLimitStorage(RateLimitStorage):
 class RedisRateLimitStorage(RateLimitStorage):
     """Redis-based rate limit storage for distributed applications."""
     
-    def __init__(self, redis_url: str, key_prefix: str = "rate_limit:") -> None:
+    def __init__(self, redis_url: str, key_prefix: str = "rate_limit:", max_connections: int = 20) -> None:
         """
         Initialize Redis storage.
         
         Args:
             redis_url: Redis connection URL
             key_prefix: Prefix for all Redis keys
+            max_connections: Maximum connections in pool
         """
         self.redis_url = redis_url
         self.key_prefix = key_prefix
+        self.max_connections = max_connections
         self._redis = None
+        self._pool = None
     
     async def _get_redis(self):
-        """Get Redis connection (lazy initialization)."""
+        """Get Redis connection pool (lazy initialization)."""
         if self._redis is None:
             try:
                 import redis.asyncio as redis
-                self._redis = redis.from_url(self.redis_url)
+                # Create connection pool for better performance
+                self._pool = redis.ConnectionPool.from_url(
+                    self.redis_url,
+                    max_connections=self.max_connections,
+                    retry_on_timeout=True,
+                    health_check_interval=30
+                )
+                self._redis = redis.Redis(connection_pool=self._pool)
             except ImportError:
                 raise ImportError("redis package is required for Redis storage backend")
         return self._redis
+    
+    async def close(self) -> None:
+        """Close Redis connection pool."""
+        if self._pool:
+            await self._pool.disconnect()
+        if self._redis:
+            await self._redis.close()
     
     def _make_key(self, key: str) -> str:
         """Create Redis key with prefix."""
@@ -272,16 +289,17 @@ class ValKeyRateLimitStorage(RedisRateLimitStorage):
     with potentially different connection parameters.
     """
     
-    def __init__(self, valkey_url: str, key_prefix: str = "rate_limit:") -> None:
+    def __init__(self, valkey_url: str, key_prefix: str = "rate_limit:", max_connections: int = 20) -> None:
         """
         Initialize Valkey storage.
         
         Args:
             valkey_url: Valkey connection URL
             key_prefix: Prefix for all Valkey keys
+            max_connections: Maximum connections in pool
         """
         # Valkey is Redis-compatible
-        super().__init__(valkey_url, key_prefix)
+        super().__init__(valkey_url, key_prefix, max_connections)
 
 
 def create_storage(config: dict[str, Any]) -> RateLimitStorage:
@@ -304,10 +322,12 @@ def create_storage(config: dict[str, Any]) -> RateLimitStorage:
     elif storage_type == "redis":
         redis_url = config.get("redis_url", "redis://localhost:6379")
         key_prefix = config.get("key_prefix", "rate_limit:")
-        return RedisRateLimitStorage(redis_url, key_prefix)
+        max_connections = config.get("max_connections", 20)
+        return RedisRateLimitStorage(redis_url, key_prefix, max_connections)
     elif storage_type == "valkey":
         valkey_url = config.get("valkey_url", "redis://localhost:6379")
         key_prefix = config.get("key_prefix", "rate_limit:")
-        return ValKeyRateLimitStorage(valkey_url, key_prefix)
+        max_connections = config.get("max_connections", 20)
+        return ValKeyRateLimitStorage(valkey_url, key_prefix, max_connections)
     else:
         raise ValueError(f"Unknown storage type: {storage_type}")

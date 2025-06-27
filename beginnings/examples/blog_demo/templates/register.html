@@ -1,0 +1,530 @@
+{% extends "base_enhanced.html" %}
+
+{% block title %}Register - {{ site_name | default('Blog Demo') }}{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">Create Account</h1>
+            <p class="auth-subtitle">Join our blog community today</p>
+        </div>
+
+        <!-- Registration Form with CSRF Protection -->
+        <form method="post" action="/register" class="auth-form" id="registerForm">
+            <!-- CSRF Token (auto-injected by framework) -->
+            {{ csrf_token() }}
+            
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    required 
+                    class="form-input"
+                    placeholder="Choose a unique username"
+                    autocomplete="username"
+                    minlength="3"
+                    maxlength="50"
+                    pattern="[a-zA-Z0-9_-]+"
+                    title="Username can only contain letters, numbers, underscores, and hyphens"
+                >
+                <small class="form-help">3-50 characters, letters, numbers, underscore, and hyphen only</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="email" class="form-label">Email Address</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    required 
+                    class="form-input"
+                    placeholder="your.email@example.com"
+                    autocomplete="email"
+                >
+                <small class="form-help">We'll never share your email address</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="full_name" class="form-label">Full Name</label>
+                <input 
+                    type="text" 
+                    id="full_name" 
+                    name="full_name" 
+                    required 
+                    class="form-input"
+                    placeholder="Your full name"
+                    autocomplete="name"
+                    maxlength="100"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    required 
+                    class="form-input"
+                    placeholder="Create a strong password"
+                    autocomplete="new-password"
+                    minlength="8"
+                >
+                <div class="password-requirements">
+                    <small class="requirement" data-requirement="length">✗ At least 8 characters</small>
+                    <small class="requirement" data-requirement="number">✗ Contains a number</small>
+                    <small class="requirement" data-requirement="special">✗ Contains special character</small>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password_confirm" class="form-label">Confirm Password</label>
+                <input 
+                    type="password" 
+                    id="password_confirm" 
+                    name="password_confirm" 
+                    required 
+                    class="form-input"
+                    placeholder="Confirm your password"
+                    autocomplete="new-password"
+                >
+                <small class="form-help match-help"></small>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="terms" required class="checkbox-input">
+                    <span class="checkbox-text">I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a></span>
+                </label>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
+                    Create Account
+                </button>
+            </div>
+        </form>
+
+        <div class="auth-footer">
+            <p class="auth-link-text">
+                Already have an account? 
+                <a href="/login" class="auth-link">Sign in here</a>
+            </p>
+        </div>
+
+        <!-- Security Features Info -->
+        <div class="security-info">
+            <div class="security-badge">
+                <span class="security-icon">🔒</span>
+                <div class="security-text">
+                    <strong>Secure Registration</strong>
+                    <small>Your data is protected with enterprise-grade security</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Information Panel -->
+<div class="demo-info">
+    <div class="demo-card">
+        <h3>📝 Registration Demo</h3>
+        <p>This registration form showcases:</p>
+        <ul>
+            <li><strong>CSRF Protection:</strong> Forms protected against cross-site attacks</li>
+            <li><strong>Rate Limiting:</strong> Limited to 3 registrations per 10 minutes per IP</li>
+            <li><strong>Input Validation:</strong> Client and server-side validation</li>
+            <li><strong>Password Security:</strong> Enforced password complexity requirements</li>
+            <li><strong>Security Headers:</strong> CSP nonces for secure inline scripts</li>
+        </ul>
+        
+        <div class="demo-tech">
+            <h4>Password Requirements:</h4>
+            <p>The framework enforces secure password policies:</p>
+            <ul>
+                <li>Minimum 8 characters</li>
+                <li>Must contain at least one number</li>
+                <li>Must contain a special character</li>
+                <li>Passwords are hashed with bcrypt</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Form validation and real-time feedback -->
+<script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerForm');
+    const passwordInput = document.getElementById('password');
+    const confirmInput = document.getElementById('password_confirm');
+    const submitBtn = document.getElementById('submitBtn');
+    const usernameInput = document.getElementById('username');
+    
+    // Password requirements validation
+    const requirements = {
+        length: password => password.length >= 8,
+        number: password => /\d/.test(password),
+        special: password => /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+    
+    function updatePasswordRequirements() {
+        const password = passwordInput.value;
+        
+        Object.keys(requirements).forEach(req => {
+            const element = document.querySelector(`[data-requirement="${req}"]`);
+            const isValid = requirements[req](password);
+            
+            element.classList.toggle('valid', isValid);
+            element.classList.toggle('invalid', password.length > 0 && !isValid);
+            element.textContent = (isValid ? '✓' : '✗') + ' ' + element.textContent.substring(2);
+        });
+        
+        // Update input styling
+        const allValid = Object.keys(requirements).every(req => requirements[req](password));
+        passwordInput.classList.toggle('valid', password.length > 0 && allValid);
+        passwordInput.classList.toggle('invalid', password.length > 0 && !allValid);
+    }
+    
+    function updatePasswordMatch() {
+        const password = passwordInput.value;
+        const confirm = confirmInput.value;
+        const matchHelp = document.querySelector('.match-help');
+        
+        if (confirm.length === 0) {
+            matchHelp.textContent = '';
+            confirmInput.classList.remove('valid', 'invalid');
+            return;
+        }
+        
+        const matches = password === confirm;
+        matchHelp.textContent = matches ? '✓ Passwords match' : '✗ Passwords do not match';
+        matchHelp.classList.toggle('valid', matches);
+        matchHelp.classList.toggle('invalid', !matches);
+        
+        confirmInput.classList.toggle('valid', matches);
+        confirmInput.classList.toggle('invalid', !matches);
+    }
+    
+    function updateSubmitButton() {
+        const password = passwordInput.value;
+        const confirm = confirmInput.value;
+        const username = usernameInput.value;
+        
+        const passwordValid = Object.keys(requirements).every(req => requirements[req](password));
+        const passwordsMatch = password === confirm && password.length > 0;
+        const usernameValid = username.length >= 3;
+        
+        const isValid = passwordValid && passwordsMatch && usernameValid;
+        submitBtn.disabled = !isValid;
+        submitBtn.classList.toggle('ready', isValid);
+    }
+    
+    // Event listeners
+    passwordInput.addEventListener('input', () => {
+        updatePasswordRequirements();
+        updatePasswordMatch();
+        updateSubmitButton();
+    });
+    
+    confirmInput.addEventListener('input', () => {
+        updatePasswordMatch();
+        updateSubmitButton();
+    });
+    
+    usernameInput.addEventListener('input', updateSubmitButton);
+    
+    // Username validation
+    usernameInput.addEventListener('input', function() {
+        const username = this.value;
+        const isValid = /^[a-zA-Z0-9_-]+$/.test(username) && username.length >= 3;
+        
+        this.classList.toggle('valid', username.length > 0 && isValid);
+        this.classList.toggle('invalid', username.length > 0 && !isValid);
+    });
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating Account...';
+        submitBtn.classList.add('loading');
+        
+        // Log security features for demo
+        console.log('🛡️ Registration form protected with:');
+        console.log('  - CSRF Token:', getCSRFToken()?.substring(0, 10) + '...');
+        console.log('  - Rate Limiting: 3 attempts per 10 minutes');
+        console.log('  - Password Policy: Enforced complexity');
+        console.log('  - Input Validation: Client + Server side');
+    });
+    
+    // Auto-focus first input
+    usernameInput.focus();
+});
+</script>
+{% endblock %}
+
+{% block head %}
+<style{% if request.state.csp_style_nonce %} nonce="{{ request.state.csp_style_nonce }}"{% endif %}>
+/* Reuse auth styles from login */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 80vh;
+    padding: 40px 20px;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 450px;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    color: #666;
+    font-size: 1rem;
+}
+
+.auth-form .form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-input.valid {
+    border-color: #28a745;
+}
+
+.form-input.invalid {
+    border-color: #dc3545;
+}
+
+.form-help {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.password-requirements {
+    margin-top: 8px;
+}
+
+.requirement {
+    display: block;
+    font-size: 0.8rem;
+    margin: 2px 0;
+    transition: color 0.2s ease;
+}
+
+.requirement.valid {
+    color: #28a745;
+}
+
+.requirement.invalid {
+    color: #dc3545;
+}
+
+.match-help.valid {
+    color: #28a745;
+}
+
+.match-help.invalid {
+    color: #dc3545;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    font-weight: normal;
+    line-height: 1.4;
+}
+
+.checkbox-input {
+    margin-right: 8px;
+    margin-top: 2px;
+}
+
+.checkbox-text a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.checkbox-text a:hover {
+    text-decoration: underline;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-primary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-primary.ready {
+    background: #007bff;
+}
+
+.btn-primary.ready:hover:not(:disabled) {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e1e5e9;
+}
+
+.auth-link-text {
+    margin: 8px 0;
+    color: #666;
+}
+
+.auth-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-link:hover {
+    text-decoration: underline;
+}
+
+.security-info {
+    margin-top: 20px;
+}
+
+.security-badge {
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.security-icon {
+    font-size: 1.2rem;
+    margin-right: 10px;
+}
+
+.security-text strong {
+    display: block;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.security-text small {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.demo-info {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 500px;
+    width: 100%;
+}
+
+.demo-card h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.demo-card ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.demo-card li {
+    margin: 8px 0;
+    color: #555;
+}
+
+.demo-tech {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .auth-container {
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+    
+    .auth-card, .demo-info {
+        max-width: 100%;
+    }
+}
+</style>
+{% endblock %}

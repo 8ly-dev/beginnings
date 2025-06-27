@@ -187,16 +187,31 @@ class TestRedisRateLimitStorage:
     
     @pytest.mark.asyncio
     async def test_get_redis_lazy_initialization(self, storage):
-        """Test lazy Redis connection initialization."""
-        with patch('redis.asyncio.from_url') as mock_from_url:
+        """Test lazy Redis connection initialization with connection pooling."""
+        with patch('redis.asyncio.ConnectionPool.from_url') as mock_pool_from_url, \
+             patch('redis.asyncio.Redis') as mock_redis_class:
+            
+            mock_pool = AsyncMock()
             mock_redis = AsyncMock()
-            mock_from_url.return_value = mock_redis
+            mock_pool_from_url.return_value = mock_pool
+            mock_redis_class.return_value = mock_redis
             
             redis_conn = await storage._get_redis()
             
             assert redis_conn == mock_redis
             assert storage._redis == mock_redis
-            mock_from_url.assert_called_once_with("redis://localhost:6379")
+            assert storage._pool == mock_pool
+            
+            # Verify connection pool was created with correct parameters
+            mock_pool_from_url.assert_called_once_with(
+                "redis://localhost:6379",
+                max_connections=20,
+                retry_on_timeout=True,
+                health_check_interval=30
+            )
+            
+            # Verify Redis instance was created with the pool
+            mock_redis_class.assert_called_once_with(connection_pool=mock_pool)
     
     @pytest.mark.asyncio
     async def test_get_redis_import_error(self, storage):

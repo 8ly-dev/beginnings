@@ -1,0 +1,331 @@
+# Blog Demo Configuration - Comprehensive Beginnings Framework Example
+# This configuration demonstrates all major framework features
+
+app:
+  name: "Blog Demo"
+  description: "Comprehensive blog application showcasing Beginnings framework features"
+  version: "1.0.0"
+  environment: "development"
+  debug: true
+
+# Router configuration for HTML and API endpoints
+routers:
+  html:
+    prefix: ""
+    default_response_class: "HTMLResponse"
+    middleware_order: ["security", "auth", "csrf", "rate_limiting"]
+  api:
+    prefix: "/api/v1"
+    default_response_class: "JSONResponse"
+    middleware_order: ["security", "auth", "rate_limiting"]
+
+# Template engine configuration
+templates:
+  directory: "templates"
+  auto_reload: true
+  auto_escape: true
+  cache_size: 400
+  globals:
+    site_name: "Blog Demo"
+    site_description: "Built with Beginnings Framework"
+
+# Static file serving
+static_files:
+  path: "/static"
+  directory: "static"
+  html_mode: true
+
+# Authentication configuration with multiple providers
+auth:
+  # Default provider for different route types
+  default_provider: "session"
+  
+  # Provider configurations
+  providers:
+    session:
+      secret_key: "${SESSION_SECRET:-your-secret-session-key-here}"
+      session_timeout: 3600  # 1 hour
+      cookie_name: "blog_session"
+      cookie_secure: false  # Set to true in production
+      cookie_httponly: true
+      cookie_samesite: "lax"
+      storage: "memory"  # Use Redis in production
+    
+    jwt:
+      secret_key: "${JWT_SECRET:-your-secret-jwt-key-here-must-be-32-chars}"
+      algorithm: "HS256"
+      token_expire_minutes: 60
+      issuer: "blog-demo"
+      audience: "blog-users"
+      
+  # Route-based authentication requirements
+  protected_routes:
+    "/new-post":
+      required: true
+      provider: "session"
+      roles: ["user", "admin"]
+      redirect_unauthorized: "/login"
+    "/api/v1/posts":
+      required: false  # Public read access
+    "/api/v1/posts/{id}":
+      required: false  # Public read access
+    "/api/v1/admin/*":
+      required: true
+      provider: "jwt"
+      roles: ["admin"]
+      error_unauthorized: {"error": "Admin access required", "status": 403}
+
+  # Authentication routes
+  routes:
+    login:
+      path: "/login"
+      template: "login.html"
+      redirect_after_login: "/"
+      methods: ["GET", "POST"]
+    logout:
+      path: "/logout"
+      redirect_after_logout: "/"
+      methods: ["POST", "GET"]
+    register:
+      path: "/register"
+      template: "register.html"
+      redirect_after_register: "/"
+      enabled: true
+
+  # Role-based access control
+  rbac:
+    roles:
+      user:
+        description: "Regular blog user"
+        permissions: ["read:posts", "create:posts", "edit:own_posts"]
+      admin:
+        description: "Blog administrator"
+        permissions: ["*"]  # All permissions
+        inherits: ["user"]
+    
+    default_role: "user"
+
+  # Security settings
+  security:
+    password_min_length: 8
+    password_require_special: true
+    password_require_number: true
+    account_lockout_attempts: 5
+    account_lockout_duration: 900  # 15 minutes
+
+# CSRF Protection configuration
+csrf:
+  enabled: true
+  token_name: "csrf_token"
+  token_length: 32
+  token_expire_minutes: 60
+  double_submit_cookie: true
+  
+  # Route application rules
+  protected_methods: ["POST", "PUT", "PATCH", "DELETE"]
+  protected_routes:
+    "/new-post":
+      enabled: true
+      custom_error: "CSRF protection failed for blog post creation"
+    "/login":
+      enabled: true
+    "/register":
+      enabled: true
+    "/api/v1/*":
+      enabled: false  # APIs use JWT tokens instead
+  
+  # Template integration
+  template_integration:
+    enabled: true
+    template_function_name: "csrf_token"
+    form_field_name: "csrf_token"
+    meta_tag_name: "csrf-token"
+  
+  # AJAX and SPA support
+  ajax:
+    header_name: "X-CSRFToken"
+    cookie_name: "csrftoken"
+    javascript_function: "getCSRFToken"
+  
+  # Error handling
+  error_handling:
+    template: "errors/csrf_error.html"
+    json_response: {"error": "CSRF token validation failed", "code": "CSRF_ERROR"}
+    status_code: 403
+
+# Rate limiting configuration
+rate_limiting:
+  # Storage backend
+  storage:
+    type: "memory"  # Use Redis in production: "redis"
+    redis_url: "${REDIS_URL}"  # Only needed if type is "redis"
+    key_prefix: "blog_demo:ratelimit:"
+  
+  # Global rate limiting (applies to all routes unless overridden)
+  global:
+    algorithm: "sliding_window"
+    requests: 1000
+    window_seconds: 3600  # 1 hour
+    identifier: "ip"
+  
+  # Route-specific rate limiting
+  routes:
+    "/login":
+      algorithm: "fixed_window"
+      requests: 5
+      window_seconds: 300  # 5 minutes
+      identifier: "ip"
+      error_template: "errors/rate_limit.html"
+      error_message: "Too many login attempts. Please try again in 5 minutes."
+      
+    "/register":
+      algorithm: "fixed_window"
+      requests: 3
+      window_seconds: 600  # 10 minutes
+      identifier: "ip"
+      error_template: "errors/rate_limit.html"
+      
+    "/new-post":
+      algorithm: "token_bucket"
+      requests: 10
+      window_seconds: 60  # 1 minute
+      burst_size: 3
+      identifier: "user"  # Rate limit per authenticated user
+      error_template: "errors/rate_limit.html"
+      
+    "/api/v1/*":
+      algorithm: "sliding_window"
+      requests: 100
+      window_seconds: 60  # 1 minute
+      identifier: "ip"
+      error_json: {"error": "API rate limit exceeded", "retry_after": "{retry_after}"}
+      
+  # Response headers
+  headers:
+    include_headers: true
+    remaining_header: "X-RateLimit-Remaining"
+    limit_header: "X-RateLimit-Limit"
+    reset_header: "X-RateLimit-Reset"
+    retry_after_header: "Retry-After"
+
+# Security headers configuration
+security:
+  # Basic security headers
+  headers:
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+    x_xss_protection: "0"  # Disabled as recommended
+    strict_transport_security:
+      max_age: 31536000  # 1 year
+      include_subdomains: true
+      preload: false
+    referrer_policy: "strict-origin-when-cross-origin"
+    
+    # Advanced security headers
+    permissions_policy:
+      geolocation: []  # No origins allowed
+      camera: []
+      microphone: []
+      payment: []
+    
+    cross_origin_embedder_policy: "require-corp"
+    cross_origin_opener_policy: "same-origin"
+    cross_origin_resource_policy: "same-origin"
+  
+  # Content Security Policy
+  csp:
+    enabled: true
+    report_only: false
+    directives:
+      default_src: ["'self'"]
+      script_src: ["'self'", "'unsafe-inline'"]  # Note: unsafe-inline for inline scripts in templates
+      style_src: ["'self'", "'unsafe-inline'"]  # For inline styles
+      img_src: ["'self'", "data:", "https:"]
+      font_src: ["'self'"]
+      connect_src: ["'self'"]
+      frame_ancestors: ["'none'"]
+      base_uri: ["'self'"]
+      form_action: ["'self'"]
+      object_src: ["'none'"]
+    
+    # CSP reporting (optional)
+    report_uri: "/csp-report"
+    
+    # Nonce generation for inline scripts/styles
+    nonce:
+      enabled: true
+      script_nonce: true
+      style_nonce: true
+      nonce_length: 16
+  
+  # Route-specific security overrides
+  routes:
+    "/api/v1/*":
+      headers:
+        # APIs don't need browser-specific security headers
+        x_frame_options: null
+      csp:
+        # Simplified CSP for JSON APIs
+        directives:
+          default_src: ["'none'"]
+    "/static/*":
+      headers:
+        # Static files can be more permissive
+        x_frame_options: "SAMEORIGIN"
+
+# Extension loading configuration
+extensions:
+  - "beginnings.extensions.auth:AuthExtension"
+  - "beginnings.extensions.csrf:CSRFExtension"
+  - "beginnings.extensions.rate_limiting:RateLimitExtension"
+  - "beginnings.extensions.security_headers:SecurityHeadersExtension"
+
+# Health checks and monitoring
+health:
+  endpoint: "/health"
+  checks:
+    - "database"
+    - "redis"  # If using Redis for sessions/rate limiting
+    - "extensions"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - type: "console"
+    - type: "file"
+      filename: "blog_demo.log"
+      max_bytes: 10485760  # 10MB
+      backup_count: 5
+
+# Development vs Production overrides
+# These can be in separate files (blog_config.dev.yaml, blog_config.prod.yaml)
+environment_overrides:
+  development:
+    app:
+      debug: true
+    auth:
+      providers:
+        session:
+          cookie_secure: false
+    security:
+      csp:
+        report_only: true  # Don't enforce CSP in development
+    rate_limiting:
+      global:
+        requests: 10000  # More lenient in development
+  
+  production:
+    app:
+      debug: false
+    auth:
+      providers:
+        session:
+          cookie_secure: true
+          storage: "redis"
+    rate_limiting:
+      storage:
+        type: "redis"
+    logging:
+      level: "WARNING"

@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from beginnings.extensions.base import BaseExtension
 from beginnings.extensions.csrf.tokens import CSRFTokenError, CSRFTokenManager
+from beginnings.extensions.csrf.template_hooks import CSRFTemplateHooks
 
 
 class CSRFExtension(BaseExtension):
@@ -62,6 +63,12 @@ class CSRFExtension(BaseExtension):
             {"error": "CSRF token validation failed"}
         )
         self.error_status_code = error_config.get("status_code", 403)
+        
+        # Configuration cache for performance
+        self._route_config_cache: dict[str, dict[str, Any]] = {}
+        
+        # Template integration hooks
+        self.template_hooks = CSRFTemplateHooks(self)
     
     def get_middleware_factory(self) -> Callable[[dict[str, Any]], Callable[..., Any]]:
         """
@@ -71,13 +78,17 @@ class CSRFExtension(BaseExtension):
             Middleware factory function
         """
         def create_middleware(route_config: dict[str, Any]) -> Callable[..., Any]:
+            # Cache the parsed configuration for this route
+            route_path = route_config.get("path", "unknown")
+            cached_config = self._get_cached_route_config(route_path, route_config)
+            
             async def csrf_middleware(request: Request, call_next: Callable[..., Any]) -> Any:
                 # Skip if CSRF protection is disabled
                 if not self.enabled:
                     return await call_next(request)
                 
-                # Extract CSRF configuration for this route
-                csrf_config = route_config.get("csrf", {})
+                # Use cached configuration
+                csrf_config = cached_config
                 
                 # Skip if explicitly disabled for this route
                 if csrf_config.get("enabled", True) is False:
@@ -218,14 +229,26 @@ class CSRFExtension(BaseExtension):
                 samesite="strict"
             )
         
-        # Inject meta tag for HTML responses
+        # Inject meta tag for HTML responses using proper template engine integration
         if isinstance(response, HTMLResponse) and self.template_integration_enabled:
             content = response.body.decode() if response.body else ""
-            if "</head>" in content:
+            if "</head>" in content and content.strip():
                 from html import escape
                 meta_tag = f'<meta name="{escape(self.meta_tag_name)}" content="{escape(token)}">'
-                content = content.replace("</head>", f"{meta_tag}\n</head>")
+                
+                # Use more robust HTML injection
+                if "<!-- CSRF_META_TAG -->" in content:
+                    # Replace placeholder if it exists
+                    content = content.replace("<!-- CSRF_META_TAG -->", meta_tag)
+                elif "</head>" in content:
+                    # Fallback to head injection
+                    content = content.replace("</head>", f"    {meta_tag}\n</head>")
+                
                 response.body = content.encode()
+                
+                # Update content length header if present
+                if "content-length" in response.headers:
+                    response.headers["content-length"] = str(len(response.body))
         
         return response
     
@@ -283,6 +306,29 @@ class CSRFExtension(BaseExtension):
             return path.startswith(prefix)
         
         return False
+    
+    def _get_cached_route_config(self, route_path: str, route_config: dict[str, Any]) -> dict[str, Any]:
+        """Get or create cached route configuration for performance."""
+        if route_path not in self._route_config_cache:
+            # Extract CSRF configuration for this route
+            base_csrf_config = route_config.get("csrf", {})
+            
+            # Apply route pattern-based configuration
+            for pattern, pattern_config in self.protected_routes_config.items():
+                if self._path_matches_pattern(route_path, pattern):
+                    # Merge pattern config as defaults, route config as overrides
+                    merged_config = {**pattern_config, **base_csrf_config}
+                    self._route_config_cache[route_path] = merged_config
+                    return merged_config
+            
+            # No pattern match, use base config with defaults
+            merged_config = {
+                "enabled": base_csrf_config.get("enabled", True),
+                **base_csrf_config  # Include any additional config
+            }
+            self._route_config_cache[route_path] = merged_config
+        
+        return self._route_config_cache[route_path]
     
     def get_csrf_token_for_template(self, request: Request) -> str:
         """

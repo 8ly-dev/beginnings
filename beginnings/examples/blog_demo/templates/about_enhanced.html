@@ -1,0 +1,772 @@
+{% extends "base_enhanced.html" %}
+
+{% block title %}About - {{ site_name | default('Blog Demo') }}{% endblock %}
+
+{% block content %}
+<div class="about-container">
+    <div class="about-hero">
+        <div class="hero-content">
+            <h1 class="hero-title">🚀 Beginnings Framework Demo</h1>
+            <p class="hero-subtitle">
+                A comprehensive showcase of the Beginnings web framework's powerful features
+            </p>
+            <div class="hero-badges">
+                <span class="badge badge-primary">Configuration-Driven</span>
+                <span class="badge badge-success">Security-First</span>
+                <span class="badge badge-info">Production-Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="features-grid">
+        <!-- Authentication -->
+        <div class="feature-card">
+            <div class="feature-icon">🔐</div>
+            <h3 class="feature-title">Multi-Provider Authentication</h3>
+            <p class="feature-description">
+                Supports Session, JWT, and OAuth authentication providers with automatic route protection.
+            </p>
+            <ul class="feature-list">
+                <li>Session-based authentication with secure cookies</li>
+                <li>JWT tokens with blacklisting and refresh</li>
+                <li>OAuth integration (Google, GitHub, custom)</li>
+                <li>Role-based access control (RBAC)</li>
+            </ul>
+            <div class="feature-status">
+                <span class="status-indicator active"></span>
+                <span class="status-text">Active in this demo</span>
+            </div>
+        </div>
+
+        <!-- CSRF Protection -->
+        <div class="feature-card">
+            <div class="feature-icon">🛡️</div>
+            <h3 class="feature-title">CSRF Protection</h3>
+            <p class="feature-description">
+                Automatic Cross-Site Request Forgery protection with seamless template integration.
+            </p>
+            <ul class="feature-list">
+                <li>Automatic token injection in forms</li>
+                <li>AJAX and SPA support</li>
+                <li>Double-submit cookie pattern</li>
+                <li>Template function integration</li>
+            </ul>
+            <div class="feature-status">
+                <span class="status-indicator active"></span>
+                <span class="status-text">All forms protected</span>
+            </div>
+        </div>
+
+        <!-- Rate Limiting -->
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3 class="feature-title">Advanced Rate Limiting</h3>
+            <p class="feature-description">
+                Multiple algorithms with route-specific configuration and distributed support.
+            </p>
+            <ul class="feature-list">
+                <li>Sliding window algorithm</li>
+                <li>Token bucket with burst handling</li>
+                <li>Fixed window with reset points</li>
+                <li>Redis/Valkey for distributed apps</li>
+            </ul>
+            <div class="feature-status">
+                <span class="status-indicator active"></span>
+                <span class="status-text">Per-route limits active</span>
+            </div>
+        </div>
+
+        <!-- Security Headers -->
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3 class="feature-title">Security Headers</h3>
+            <p class="feature-description">
+                Comprehensive security headers with Content Security Policy and CORS support.
+            </p>
+            <ul class="feature-list">
+                <li>CSP with nonce generation</li>
+                <li>HSTS, X-Frame-Options, etc.</li>
+                <li>CORS configuration</li>
+                <li>Route-specific customization</li>
+            </ul>
+            <div class="feature-status">
+                <span class="status-indicator active"></span>
+                <span class="status-text">All headers enabled</span>
+            </div>
+        </div>
+
+        <!-- Template Engine -->
+        <div class="feature-card">
+            <div class="feature-icon">🎨</div>
+            <h3 class="feature-title">Secure Template Engine</h3>
+            <p class="feature-description">
+                Jinja2-based template engine with automatic security feature integration.
+            </p>
+            <ul class="feature-list">
+                <li>Auto-escaping enabled by default</li>
+                <li>CSRF token integration</li>
+                <li>CSP nonce support</li>
+                <li>Template inheritance</li>
+            </ul>
+            <div class="feature-status">
+                <span class="status-indicator active"></span>
+                <span class="status-text">Framework integration</span>
+            </div>
+        </div>
+
+        <!-- Configuration System -->
+        <div class="feature-card">
+            <div class="feature-icon">⚙️</div>
+            <h3 class="feature-title">Configuration-First Design</h3>
+            <p class="feature-description">
+                YAML-based configuration with environment management and validation.
+            </p>
+            <ul class="feature-list">
+                <li>Single configuration file</li>
+                <li>Environment-specific overrides</li>
+                <li>Include system for organization</li>
+                <li>Automatic validation</li>
+            </ul>
+            <div class="feature-status">
+                <span class="status-indicator active"></span>
+                <span class="status-text">blog_config.yaml</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Details -->
+    <div class="technical-section">
+        <h2 class="section-title">🔧 Technical Implementation</h2>
+        
+        <div class="tech-cards">
+            <div class="tech-card">
+                <h4>Current Configuration</h4>
+                <div class="config-display">
+                    <div class="config-item">
+                        <strong>Environment:</strong> {{ app.environment | default('development') }}
+                    </div>
+                    <div class="config-item">
+                        <strong>Debug Mode:</strong> {{ app.debug | default(true) }}
+                    </div>
+                    <div class="config-item">
+                        <strong>Auth Provider:</strong> Session + JWT
+                    </div>
+                    <div class="config-item">
+                        <strong>Rate Limiting:</strong> Memory Storage
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <h4>Security Status</h4>
+                <div class="security-checks">
+                    <div class="check-item">
+                        <span class="check-icon">✅</span>
+                        <span>CSRF protection enabled</span>
+                    </div>
+                    <div class="check-item">
+                        <span class="check-icon">✅</span>
+                        <span>Security headers active</span>
+                    </div>
+                    <div class="check-item">
+                        <span class="check-icon">✅</span>
+                        <span>Rate limiting configured</span>
+                    </div>
+                    <div class="check-item">
+                        <span class="check-icon">✅</span>
+                        <span>Template auto-escaping</span>
+                    </div>
+                    <div class="check-item">
+                        <span class="check-icon">✅</span>
+                        <span>CSP nonces generated</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <h4>Framework Extensions</h4>
+                <div class="extensions-list">
+                    {% for extension in ['AuthExtension', 'CSRFExtension', 'RateLimitExtension', 'SecurityHeadersExtension'] %}
+                    <div class="extension-item">
+                        <span class="ext-icon">🔧</span>
+                        <span class="ext-name">{{ extension }}</span>
+                        <span class="ext-status">Active</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Demo -->
+    <div class="demo-section">
+        <h2 class="section-title">🎮 Interactive Demo</h2>
+        <p class="section-subtitle">Try out the framework features in real-time</p>
+        
+        <div class="demo-cards">
+            <div class="demo-card">
+                <h4>🔐 Authentication Flow</h4>
+                <p>Experience the complete authentication system:</p>
+                <div class="demo-actions">
+                    {% if current_user %}
+                        <span class="demo-status">✅ Logged in as <strong>{{ current_user }}</strong></span>
+                        <a href="/logout" class="btn btn-outline btn-sm">Test Logout</a>
+                    {% else %}
+                        <a href="/login" class="btn btn-primary btn-sm">Test Login</a>
+                        <a href="/register" class="btn btn-outline btn-sm">Test Registration</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="demo-card">
+                <h4>📝 CSRF Protection</h4>
+                <p>All forms are automatically protected:</p>
+                <div class="demo-actions">
+                    <button class="btn btn-outline btn-sm" onclick="showCSRFToken()">Show CSRF Token</button>
+                    <span id="csrfDisplay" class="csrf-display"></span>
+                </div>
+            </div>
+
+            <div class="demo-card">
+                <h4>⚡ Rate Limiting</h4>
+                <p>Test the rate limiting system:</p>
+                <div class="demo-actions">
+                    <button class="btn btn-outline btn-sm" onclick="testRateLimit()">Test API Call</button>
+                    <span id="rateLimitDisplay" class="rate-limit-display"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Framework Benefits -->
+    <div class="benefits-section">
+        <h2 class="section-title">🎯 Why Choose Beginnings?</h2>
+        
+        <div class="benefits-grid">
+            <div class="benefit-item">
+                <div class="benefit-icon">🚀</div>
+                <h4>Fast Development</h4>
+                <p>Configuration-driven architecture eliminates boilerplate code and speeds up development.</p>
+            </div>
+            
+            <div class="benefit-item">
+                <div class="benefit-icon">🛡️</div>
+                <h4>Security by Default</h4>
+                <p>Built-in security features protect against common web vulnerabilities automatically.</p>
+            </div>
+            
+            <div class="benefit-item">
+                <div class="benefit-icon">📈</div>
+                <h4>Production Ready</h4>
+                <p>Enterprise-grade features like rate limiting, monitoring, and error handling included.</p>
+            </div>
+            
+            <div class="benefit-item">
+                <div class="benefit-icon">🔧</div>
+                <h4>Extensible</h4>
+                <p>Modular extension system allows custom functionality while maintaining consistency.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call to Action -->
+    <div class="cta-section">
+        <div class="cta-content">
+            <h2>Ready to Build with Beginnings?</h2>
+            <p>Start building secure, scalable web applications with the Beginnings framework.</p>
+            <div class="cta-actions">
+                <a href="https://beginnings.8ly.xyz/docs" class="btn btn-primary" target="_blank">
+                    📚 Read Documentation
+                </a>
+                <a href="/docs" class="btn btn-outline" target="_blank">
+                    🔍 Explore API
+                </a>
+                <a href="https://github.com/8ly/beginnings" class="btn btn-outline" target="_blank">
+                    💻 View Source
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+document.addEventListener('DOMContentLoaded', function() {
+    // CSRF Token Demo
+    window.showCSRFToken = function() {
+        const token = getCSRFToken();
+        const display = document.getElementById('csrfDisplay');
+        if (token) {
+            display.textContent = `Token: ${token.substring(0, 10)}...`;
+            display.style.display = 'inline';
+            console.log('🛡️ Full CSRF Token:', token);
+        } else {
+            display.textContent = 'No CSRF token found';
+            display.style.display = 'inline';
+        }
+    };
+    
+    // Rate Limiting Demo
+    window.testRateLimit = function() {
+        const display = document.getElementById('rateLimitDisplay');
+        display.textContent = 'Testing...';
+        display.style.display = 'inline';
+        
+        fetch('/api/v1/posts')
+            .then(response => {
+                const remaining = response.headers.get('X-RateLimit-Remaining');
+                const limit = response.headers.get('X-RateLimit-Limit');
+                
+                if (remaining && limit) {
+                    display.textContent = `${remaining}/${limit} requests remaining`;
+                } else {
+                    display.textContent = 'Rate limit headers not found';
+                }
+                
+                console.log('⚡ Rate Limit Headers:');
+                console.log('  Remaining:', remaining);
+                console.log('  Limit:', limit);
+                console.log('  Reset:', response.headers.get('X-RateLimit-Reset'));
+                
+                return response.json();
+            })
+            .then(data => {
+                console.log('📊 API Response:', data.length, 'posts returned');
+            })
+            .catch(error => {
+                display.textContent = 'Error testing rate limit';
+                console.error('Rate limit test error:', error);
+            });
+    };
+    
+    // Animate feature cards on scroll
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate-in');
+            }
+        });
+    }, observerOptions);
+    
+    document.querySelectorAll('.feature-card, .benefit-item').forEach(card => {
+        observer.observe(card);
+    });
+    
+    // Log framework features on page load
+    console.log('🚀 Beginnings Framework Demo Loaded');
+    console.log('Features Active:');
+    console.log('  🔐 Authentication: Session + JWT');
+    console.log('  🛡️ CSRF Protection: Enabled');
+    console.log('  ⚡ Rate Limiting: Active');
+    console.log('  🔒 Security Headers: Complete');
+    console.log('  🎨 Template Engine: Framework Integration');
+});
+</script>
+{% endblock %}
+
+{% block head %}
+<style{% if request.state.csp_style_nonce %} nonce="{{ request.state.csp_style_nonce }}"{% endif %}>
+.about-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.about-hero {
+    text-align: center;
+    padding: 60px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    color: white;
+    margin-bottom: 40px;
+}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 900;
+    margin-bottom: 16px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.hero-subtitle {
+    font-size: 1.3rem;
+    margin-bottom: 24px;
+    opacity: 0.9;
+}
+
+.hero-badges {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-primary { background: rgba(255,255,255,0.2); }
+.badge-success { background: rgba(40,167,69,0.3); }
+.badge-info { background: rgba(23,162,184,0.3); }
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 24px;
+    margin-bottom: 50px;
+}
+
+.feature-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.feature-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 16px;
+}
+
+.feature-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.feature-description {
+    color: #666;
+    margin-bottom: 16px;
+    line-height: 1.6;
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0;
+}
+
+.feature-list li {
+    padding: 4px 0;
+    color: #555;
+    position: relative;
+    padding-left: 20px;
+}
+
+.feature-list li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: #28a745;
+    font-weight: bold;
+}
+
+.feature-status {
+    display: flex;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-indicator.active {
+    background: #28a745;
+    box-shadow: 0 0 8px rgba(40,167,69,0.4);
+}
+
+.status-text {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 600;
+}
+
+.technical-section, .demo-section, .benefits-section {
+    margin: 50px 0;
+}
+
+.section-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #333;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.section-subtitle {
+    text-align: center;
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 40px;
+}
+
+.tech-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+}
+
+.tech-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #e9ecef;
+}
+
+.tech-card h4 {
+    color: #333;
+    margin-bottom: 16px;
+    font-weight: 700;
+}
+
+.config-item, .check-item, .extension-item {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+    font-size: 0.9rem;
+}
+
+.check-icon, .ext-icon {
+    margin-right: 8px;
+}
+
+.ext-status {
+    margin-left: auto;
+    background: #28a745;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.demo-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.demo-card {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.2s ease;
+}
+
+.demo-card:hover {
+    border-color: #007bff;
+}
+
+.demo-card h4 {
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.demo-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.demo-status {
+    color: #28a745;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.csrf-display, .rate-limit-display {
+    display: none;
+    font-size: 0.85rem;
+    color: #666;
+    font-family: monospace;
+    margin-left: 8px;
+}
+
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+}
+
+.benefit-item {
+    text-align: center;
+    padding: 24px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.benefit-item.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.benefit-icon {
+    font-size: 2rem;
+    margin-bottom: 16px;
+}
+
+.benefit-item h4 {
+    color: #333;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+
+.benefit-item p {
+    color: #666;
+    line-height: 1.6;
+}
+
+.cta-section {
+    background: #f8f9fa;
+    border-radius: 16px;
+    padding: 50px 30px;
+    text-align: center;
+    margin: 50px 0;
+}
+
+.cta-content h2 {
+    color: #333;
+    margin-bottom: 16px;
+    font-weight: 800;
+}
+
+.cta-content p {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+
+.cta-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    background: white;
+    color: #007bff;
+    border: 2px solid #007bff;
+}
+
+.btn-outline:hover {
+    background: #007bff;
+    color: white;
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2.2rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.1rem;
+    }
+    
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .tech-cards, .demo-cards, .benefits-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .cta-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .demo-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .feature-card, .demo-card {
+        background: #2d3748;
+        color: white;
+    }
+    
+    .feature-title, .tech-card h4, .demo-card h4 {
+        color: white;
+    }
+    
+    .tech-card {
+        background: #4a5568;
+        border-color: #4a5568;
+    }
+    
+    .cta-section {
+        background: #2d3748;
+    }
+    
+    .cta-content h2, .benefit-item h4 {
+        color: white;
+    }
+}
+</style>
+{% endblock %}

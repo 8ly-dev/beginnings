@@ -14,52 +14,10 @@ from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from beginnings.extensions.base import BaseExtension
+from beginnings.extensions.rate_limiting.algorithms import create_algorithm, RateLimitAlgorithm
+from beginnings.extensions.rate_limiting.storage import create_storage, RateLimitStorage
 from beginnings.extensions.rate_limiting.trusted_proxies import TrustedProxyManager
-
-
-class RateLimitStorage:
-    """Abstract interface for rate limit storage backends."""
-    
-    async def get_counter(self, key: str) -> tuple[int, float]:
-        """Get current count and window start time for key."""
-        raise NotImplementedError
-    
-    async def increment_counter(self, key: str, window_seconds: int) -> tuple[int, float]:
-        """Increment counter and return new count with window start."""
-        raise NotImplementedError
-    
-    async def reset_counter(self, key: str) -> None:
-        """Reset counter for key."""
-        raise NotImplementedError
-
-
-class MemoryRateLimitStorage(RateLimitStorage):
-    """In-memory rate limit storage for single-instance applications."""
-    
-    def __init__(self) -> None:
-        self._counters: dict[str, tuple[int, float]] = {}
-    
-    async def get_counter(self, key: str) -> tuple[int, float]:
-        """Get current count and window start time for key."""
-        return self._counters.get(key, (0, time.time()))
-    
-    async def increment_counter(self, key: str, window_seconds: int) -> tuple[int, float]:
-        """Increment counter and return new count with window start."""
-        current_time = time.time()
-        count, window_start = self._counters.get(key, (0, current_time))
-        
-        # Reset if window has expired
-        if current_time - window_start >= window_seconds:
-            count = 0
-            window_start = current_time
-        
-        count += 1
-        self._counters[key] = (count, window_start)
-        return count, window_start
-    
-    async def reset_counter(self, key: str) -> None:
-        """Reset counter for key."""
-        self._counters.pop(key, None)
+from beginnings.monitoring import get_structured_logger, get_metrics_collector, SecurityEvent, PerformanceEvent
 
 
 class RateLimitExtension(BaseExtension):
@@ -79,14 +37,13 @@ class RateLimitExtension(BaseExtension):
         """
         super().__init__(config)
         
-        # Storage backend configuration
+        # Storage backend configuration and initialization
         storage_config = config.get("storage", {})
-        storage_type = storage_config.get("type", "memory")
+        self._storage = create_storage(storage_config)
         
-        if storage_type == "memory":
-            self._storage = MemoryRateLimitStorage()
-        else:
-            raise ValueError(f"Unsupported storage type: {storage_type}")
+        # Algorithm configuration
+        algorithm_config = config.get("algorithms", {})
+        self.default_algorithm_type = config.get("global", {}).get("algorithm", "fixed_window")
         
         # Global rate limiting settings
         global_config = config.get("global", {})
@@ -106,9 +63,32 @@ class RateLimitExtension(BaseExtension):
         self.reset_header = headers_config.get("reset_header", "X-RateLimit-Reset")
         self.retry_after_header = headers_config.get("retry_after_header", "Retry-After")
         
+        # Algorithm instances cache (for performance)
+        self._algorithm_cache: dict[str, RateLimitAlgorithm] = {}
+        self._algorithm_configs = algorithm_config
+        
+        # Configuration cache for performance (parsed route configs)
+        self._route_config_cache: dict[str, dict[str, Any]] = {}
+        
         # Trusted proxy manager for IP validation
         proxy_config = config.get("trusted_proxies", {"enabled": True})
         self.proxy_manager = TrustedProxyManager(proxy_config)
+        
+        # Monitoring and observability
+        self.logger = get_structured_logger()
+        self.metrics = get_metrics_collector()
+        
+        # Log extension startup
+        self.logger.log_extension_startup("rate_limiting", config)
+    
+    async def get_shutdown_handler(self) -> Callable[[], None] | None:
+        """Get shutdown handler for cleanup."""
+        async def shutdown():
+            # Close storage connections if needed
+            if hasattr(self._storage, 'close'):
+                await self._storage.close()
+        
+        return shutdown
     
     def get_middleware_factory(self) -> Callable[[dict[str, Any]], Callable[..., Any]]:
         """
@@ -118,19 +98,26 @@ class RateLimitExtension(BaseExtension):
             Middleware factory function
         """
         def create_middleware(route_config: dict[str, Any]) -> Callable[..., Any]:
+            # Cache the parsed configuration for this route to avoid re-parsing
+            route_path = route_config.get("path", "unknown")
+            cached_config = self._get_cached_route_config(route_path, route_config)
+            
             async def rate_limit_middleware(request: Request, call_next: Callable[..., Any]) -> Any:
-                # Extract rate limit configuration for this route
-                rate_limit_config = route_config.get("rate_limiting", {})
+                # Use cached configuration
+                rate_limit_config = cached_config
                 
                 # Skip if rate limiting is disabled
                 if not rate_limit_config.get("enabled", self.global_enabled):
                     return await call_next(request)
                 
                 try:
-                    # Resolve rate limit parameters
-                    limit = rate_limit_config.get("requests", self.global_requests)
-                    window_seconds = rate_limit_config.get("window_seconds", self.global_window_seconds)
-                    identifier_type = rate_limit_config.get("identifier", self.global_identifier)
+                    start_time = time.time()
+                    
+                    # Get pre-cached rate limit parameters (no need to resolve)
+                    limit = rate_limit_config["requests"]
+                    window_seconds = rate_limit_config["window_seconds"]
+                    identifier_type = rate_limit_config["identifier"]
+                    algorithm_type = rate_limit_config["algorithm"]
                     
                     # Get identifier for rate limiting
                     identifier = await self._get_identifier(request, identifier_type)
@@ -138,19 +125,43 @@ class RateLimitExtension(BaseExtension):
                     # Create rate limit key
                     rate_limit_key = f"rate_limit:{identifier}:{request.url.path}"
                     
-                    # Check and update rate limit
-                    count, window_start = await self._storage.increment_counter(
-                        rate_limit_key, window_seconds
+                    # Get algorithm instance for this configuration
+                    algorithm = self._get_algorithm(algorithm_type)
+                    
+                    # Check rate limit using algorithm
+                    allowed, remaining, reset_time = await algorithm.is_allowed(
+                        rate_limit_key, limit, window_seconds
                     )
                     
-                    # Calculate remaining and reset time
-                    remaining = max(0, limit - count)
-                    reset_time = int(window_start + window_seconds)
+                    # Record performance metrics
+                    duration_ms = (time.time() - start_time) * 1000
+                    self.metrics.record_histogram("rate_limit_check_duration", duration_ms, {
+                        "algorithm": algorithm_type,
+                        "identifier_type": identifier_type
+                    })
+                    self.metrics.increment_counter("rate_limit_checks_total", 1, {
+                        "algorithm": algorithm_type,
+                        "allowed": str(allowed)
+                    })
                     
                     # Check if limit exceeded
-                    if count > limit:
+                    if not allowed:
+                        # Log security event
+                        self.logger.log_security_event(SecurityEvent(
+                            event_type="rate_limited",
+                            ip_address=identifier if identifier_type == "ip" else None,
+                            user_id=identifier if identifier_type == "user" else None,
+                            request_path=str(request.url.path),
+                            details={
+                                "limit": limit,
+                                "algorithm": algorithm_type,
+                                "reset_time": int(reset_time)
+                            },
+                            severity="warning"
+                        ))
+                        
                         return await self._handle_rate_limit_exceeded(
-                            request, rate_limit_config, reset_time
+                            request, rate_limit_config, int(reset_time)
                         )
                     
                     # Continue to route handler
@@ -160,12 +171,19 @@ class RateLimitExtension(BaseExtension):
                     if self.include_headers:
                         response.headers[self.limit_header] = str(limit)
                         response.headers[self.remaining_header] = str(remaining)
-                        response.headers[self.reset_header] = str(reset_time)
+                        response.headers[self.reset_header] = str(int(reset_time))
                     
                     return response
                     
                 except Exception as e:
-                    # Log error in production, continue without rate limiting
+                    # Log error and continue without rate limiting
+                    self.logger.log_extension_error("rate_limiting", e, {
+                        "request_path": str(request.url.path),
+                        "identifier_type": identifier_type if 'identifier_type' in locals() else "unknown"
+                    })
+                    self.metrics.increment_counter("rate_limit_errors_total", 1, {
+                        "error_type": type(e).__name__
+                    })
                     return await call_next(request)
             
             return rate_limit_middleware
@@ -224,6 +242,45 @@ class RateLimitExtension(BaseExtension):
         else:
             # Default to IP
             return self._get_client_ip(request)
+    
+    def _get_algorithm(self, algorithm_type: str) -> RateLimitAlgorithm:
+        """Get or create algorithm instance for given type."""
+        if algorithm_type not in self._algorithm_cache:
+            # Get algorithm-specific configuration
+            algo_config = self._algorithm_configs.get(algorithm_type, {})
+            algo_config["type"] = algorithm_type
+            
+            # Create algorithm instance with storage backend
+            self._algorithm_cache[algorithm_type] = create_algorithm(algo_config, self._storage)
+        
+        return self._algorithm_cache[algorithm_type]
+    
+    def _get_cached_route_config(self, route_path: str, route_config: dict[str, Any]) -> dict[str, Any]:
+        """Get or create cached route configuration for performance."""
+        if route_path not in self._route_config_cache:
+            # Extract and merge rate limiting configuration
+            base_rate_config = route_config.get("rate_limiting", {})
+            
+            # Apply route pattern-based defaults
+            for pattern, pattern_config in self.routes_config.items():
+                if self._path_matches_pattern(route_path, pattern):
+                    # Merge pattern config as defaults, route config as overrides
+                    merged_config = {**pattern_config, **base_rate_config}
+                    self._route_config_cache[route_path] = merged_config
+                    return merged_config
+            
+            # No pattern match, use base config with global defaults
+            merged_config = {
+                "enabled": base_rate_config.get("enabled", self.global_enabled),
+                "requests": base_rate_config.get("requests", self.global_requests),
+                "window_seconds": base_rate_config.get("window_seconds", self.global_window_seconds),
+                "identifier": base_rate_config.get("identifier", self.global_identifier),
+                "algorithm": base_rate_config.get("algorithm", self.default_algorithm_type),
+                **base_rate_config  # Include any additional config
+            }
+            self._route_config_cache[route_path] = merged_config
+        
+        return self._route_config_cache[route_path]
     
     def _get_client_ip(self, request: Request) -> str:
         """Extract client IP address from request with proxy validation."""

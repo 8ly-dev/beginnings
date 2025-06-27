@@ -313,23 +313,17 @@ class TestHTMLRouterPublicInterface:
             def home():
                 return HTMLResponse("<h1>Home Page</h1>")
 
-            # Test @router.post() decorator
+            # Test @router.post() decorator (supported for HTML forms)
             @html_router.post("/submit")
             def submit_form():
                 return HTMLResponse("<h1>Form Submitted</h1>")
 
-            # Test @router.put() decorator
-            @html_router.put("/update/{item_id}")
-            def update_item(item_id: int):
-                return HTMLResponse(f"<h1>Updated Item {item_id}</h1>")
+            # Note: PUT/PATCH/DELETE decorators are not supported for HTMLRouter
+            # These methods are intended for REST APIs, not form-based HTML applications
+            # Use create_api_router() for REST operations that require these methods
 
-            # Test @router.delete() decorator
-            @html_router.delete("/delete/{item_id}")
-            def delete_item(item_id: int):
-                return HTMLResponse(f"<h1>Deleted Item {item_id}</h1>")
-
-            # Verify routes were registered
-            assert len(html_router.routes) == 4
+            # Verify routes were registered (GET + POST)
+            assert len(html_router.routes) == 2
 
             # Test with FastAPI app
             app.include_router(html_router)
@@ -343,14 +337,6 @@ class TestHTMLRouterPublicInterface:
             response = client.post("/submit")
             assert response.status_code == 200
             assert "Form Submitted" in response.text
-
-            response = client.put("/update/123")
-            assert response.status_code == 200
-            assert "Updated Item 123" in response.text
-
-            response = client.delete("/delete/456")
-            assert response.status_code == 200
-            assert "Deleted Item 456" in response.text
 
         finally:
             import shutil

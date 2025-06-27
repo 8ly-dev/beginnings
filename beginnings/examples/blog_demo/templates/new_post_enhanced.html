@@ -1,0 +1,747 @@
+{% extends "base_enhanced.html" %}
+
+{% block title %}New Post - {{ site_name | default('Blog Demo') }}{% endblock %}
+
+{% block content %}
+<div class="post-creation-container">
+    <div class="post-creation-card">
+        <div class="post-header">
+            <h1 class="post-title">Create New Post</h1>
+            <p class="post-subtitle">Share your thoughts with the community</p>
+            <div class="user-info-badge">
+                <span class="user-icon">👤</span>
+                <span>Publishing as <strong>{{ current_user }}</strong></span>
+            </div>
+        </div>
+
+        <!-- Post Creation Form with CSRF Protection -->
+        <form method="post" action="/new-post" class="post-form" id="postForm">
+            <!-- CSRF Token (auto-injected by framework) -->
+            {{ csrf_token() }}
+            
+            <div class="form-group">
+                <label for="title" class="form-label">Post Title</label>
+                <input 
+                    type="text" 
+                    id="title" 
+                    name="title" 
+                    required 
+                    class="form-input title-input"
+                    placeholder="Enter an engaging title for your post"
+                    maxlength="200"
+                >
+                <div class="char-counter">
+                    <span id="titleCounter">0</span>/200 characters
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="content" class="form-label">Post Content</label>
+                <div class="editor-toolbar">
+                    <button type="button" class="toolbar-btn" data-action="bold" title="Bold">
+                        <strong>B</strong>
+                    </button>
+                    <button type="button" class="toolbar-btn" data-action="italic" title="Italic">
+                        <em>I</em>
+                    </button>
+                    <button type="button" class="toolbar-btn" data-action="heading" title="Heading">
+                        H1
+                    </button>
+                    <div class="toolbar-divider"></div>
+                    <button type="button" class="toolbar-btn" data-action="link" title="Link">
+                        🔗
+                    </button>
+                    <button type="button" class="toolbar-btn" data-action="quote" title="Quote">
+                        💬
+                    </button>
+                    <button type="button" class="toolbar-btn" data-action="code" title="Code">
+                        💻
+                    </button>
+                </div>
+                <textarea 
+                    id="content" 
+                    name="content" 
+                    rows="15" 
+                    required 
+                    class="form-input content-input"
+                    placeholder="Write your post content here... You can use Markdown formatting!"
+                ></textarea>
+                <div class="editor-help">
+                    <small>💡 Tip: You can use <strong>Markdown</strong> formatting like **bold**, *italic*, and [links](url)</small>
+                </div>
+                <div class="char-counter">
+                    <span id="contentCounter">0</span> characters
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="published" checked class="checkbox-input">
+                        <span class="checkbox-text">Publish immediately</span>
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="allow_comments" checked class="checkbox-input">
+                        <span class="checkbox-text">Allow comments</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <a href="/" class="btn btn-secondary">Cancel</a>
+                <button type="button" class="btn btn-outline" id="previewBtn">Preview</button>
+                <button type="submit" class="btn btn-primary" id="publishBtn">
+                    <span class="btn-icon">📝</span>
+                    Publish Post
+                </button>
+            </div>
+        </form>
+
+        <!-- Live Preview (hidden by default) -->
+        <div id="previewContainer" class="preview-container" style="display: none;">
+            <div class="preview-header">
+                <h3>Preview</h3>
+                <button type="button" class="btn btn-sm" id="closePreview">Close Preview</button>
+            </div>
+            <div class="preview-content">
+                <div id="previewTitle" class="preview-title"></div>
+                <div id="previewBody" class="preview-body"></div>
+            </div>
+        </div>
+
+        <!-- Security Features Info -->
+        <div class="security-info">
+            <div class="security-badge">
+                <span class="security-icon">🛡️</span>
+                <div class="security-text">
+                    <strong>Protected Form Submission</strong>
+                    <small>CSRF protection and rate limiting active</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Information Panel -->
+<div class="demo-info">
+    <div class="demo-card">
+        <h3>📝 Post Creation Demo</h3>
+        <p>This form demonstrates advanced framework features:</p>
+        <ul>
+            <li><strong>CSRF Protection:</strong> Hidden token prevents unauthorized post creation</li>
+            <li><strong>Rate Limiting:</strong> Token bucket algorithm (10 posts/minute, burst of 3)</li>
+            <li><strong>Authentication:</strong> Route protected by session authentication</li>
+            <li><strong>Input Validation:</strong> Client-side validation with server-side verification</li>
+            <li><strong>CSP Nonces:</strong> Secure inline scripts with Content Security Policy</li>
+        </ul>
+        
+        <div class="demo-tech">
+            <h4>Security Features Active:</h4>
+            <div class="security-features">
+                <div class="feature-item">
+                    <span class="feature-icon">🔐</span>
+                    <span>Session-based authentication</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🛡️</span>
+                    <span>CSRF token validation</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">⚡</span>
+                    <span>Rate limiting (per user)</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🔒</span>
+                    <span>Security headers with CSP</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Enhanced post creation with live preview and formatting tools -->
+<script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('postForm');
+    const titleInput = document.getElementById('title');
+    const contentInput = document.getElementById('content');
+    const titleCounter = document.getElementById('titleCounter');
+    const contentCounter = document.getElementById('contentCounter');
+    const publishBtn = document.getElementById('publishBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const previewContainer = document.getElementById('previewContainer');
+    const closePreviewBtn = document.getElementById('closePreview');
+    
+    // Character counting
+    function updateCounters() {
+        titleCounter.textContent = titleInput.value.length;
+        contentCounter.textContent = contentInput.value.length;
+        
+        // Update submit button state
+        const hasTitle = titleInput.value.trim().length > 0;
+        const hasContent = contentInput.value.trim().length > 0;
+        publishBtn.disabled = !(hasTitle && hasContent);
+        publishBtn.classList.toggle('ready', hasTitle && hasContent);
+    }
+    
+    titleInput.addEventListener('input', updateCounters);
+    contentInput.addEventListener('input', updateCounters);
+    
+    // Toolbar functionality
+    const toolbarButtons = document.querySelectorAll('.toolbar-btn');
+    toolbarButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const textarea = contentInput;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            let replacement = '';
+            
+            switch(action) {
+                case 'bold':
+                    replacement = `**${selectedText || 'bold text'}**`;
+                    break;
+                case 'italic':
+                    replacement = `*${selectedText || 'italic text'}*`;
+                    break;
+                case 'heading':
+                    replacement = `# ${selectedText || 'Heading'}`;
+                    break;
+                case 'link':
+                    replacement = `[${selectedText || 'link text'}](url)`;
+                    break;
+                case 'quote':
+                    replacement = `> ${selectedText || 'quoted text'}`;
+                    break;
+                case 'code':
+                    replacement = `\`${selectedText || 'code'}\``;
+                    break;
+            }
+            
+            textarea.setRangeText(replacement, start, end, 'select');
+            textarea.focus();
+            updateCounters();
+        });
+    });
+    
+    // Simple markdown preview
+    function renderMarkdownPreview(text) {
+        return text
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+            .replace(/\n/g, '<br>');
+    }
+    
+    // Preview functionality
+    previewBtn.addEventListener('click', function() {
+        const title = titleInput.value.trim();
+        const content = contentInput.value.trim();
+        
+        if (!title && !content) {
+            alert('Please enter a title and content to preview.');
+            return;
+        }
+        
+        document.getElementById('previewTitle').textContent = title || 'Untitled Post';
+        document.getElementById('previewBody').innerHTML = renderMarkdownPreview(content || 'No content');
+        
+        previewContainer.style.display = 'block';
+        previewContainer.scrollIntoView({ behavior: 'smooth' });
+    });
+    
+    closePreviewBtn.addEventListener('click', function() {
+        previewContainer.style.display = 'none';
+    });
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        publishBtn.disabled = true;
+        publishBtn.innerHTML = '<span class="btn-icon">⏳</span> Publishing...';
+        publishBtn.classList.add('loading');
+        
+        // Log security features for demo
+        console.log('🛡️ Post creation protected with:');
+        console.log('  - CSRF Token:', getCSRFToken()?.substring(0, 10) + '...');
+        console.log('  - Authentication: Session-based');
+        console.log('  - Rate Limiting: 10 posts/minute per user');
+        console.log('  - Input Validation: Title and content required');
+        
+        // Re-enable button after delay (in case of validation failure)
+        setTimeout(() => {
+            publishBtn.disabled = false;
+            publishBtn.innerHTML = '<span class="btn-icon">📝</span> Publish Post';
+            publishBtn.classList.remove('loading');
+        }, 3000);
+    });
+    
+    // Auto-save draft functionality (demo)
+    let autoSaveTimeout;
+    function autoSave() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+            
+            if (title || content) {
+                // In a real app, this would save to localStorage or server
+                console.log('📝 Auto-saved draft:', { title: title.substring(0, 20) + '...', content: content.length + ' chars' });
+            }
+        }, 2000);
+    }
+    
+    titleInput.addEventListener('input', autoSave);
+    contentInput.addEventListener('input', autoSave);
+    
+    // Focus title input on load
+    titleInput.focus();
+    
+    // Initial counter update
+    updateCounters();
+});
+</script>
+{% endblock %}
+
+{% block head %}
+<style{% if request.state.csp_style_nonce %} nonce="{{ request.state.csp_style_nonce }}"{% endif %}>
+.post-creation-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.post-creation-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    flex: 1;
+    min-width: 600px;
+}
+
+.post-header {
+    margin-bottom: 30px;
+}
+
+.post-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.post-subtitle {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.user-info-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
+.user-icon {
+    margin-right: 8px;
+}
+
+.post-form .form-group {
+    margin-bottom: 25px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+    font-size: 1rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.title-input {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.content-input {
+    min-height: 300px;
+    resize: vertical;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    line-height: 1.6;
+}
+
+.char-counter {
+    text-align: right;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 8px 12px;
+    gap: 4px;
+}
+
+.toolbar-btn {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.toolbar-btn:hover {
+    background: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: #dee2e6;
+    margin: 0 8px;
+}
+
+.editor-help {
+    margin-top: 8px;
+}
+
+.editor-help small {
+    color: #6c757d;
+}
+
+.form-options {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.checkbox-input {
+    margin-right: 8px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 30px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-primary.ready {
+    background: #007bff;
+}
+
+.btn-primary.ready:hover:not(:disabled) {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-outline {
+    background: white;
+    color: #007bff;
+    border: 2px solid #007bff;
+}
+
+.btn-outline:hover {
+    background: #007bff;
+    color: white;
+}
+
+.btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+}
+
+.preview-container {
+    margin-top: 30px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.preview-header {
+    background: #f8f9fa;
+    padding: 12px 20px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.preview-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.preview-content {
+    padding: 20px;
+}
+
+.preview-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 15px;
+}
+
+.preview-body {
+    line-height: 1.6;
+    color: #333;
+}
+
+.preview-body h1, .preview-body h2, .preview-body h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.preview-body blockquote {
+    border-left: 4px solid #007bff;
+    padding-left: 15px;
+    margin: 15px 0;
+    color: #555;
+    font-style: italic;
+}
+
+.preview-body code {
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.security-info {
+    margin-top: 30px;
+}
+
+.security-badge {
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.security-icon {
+    font-size: 1.2rem;
+    margin-right: 10px;
+}
+
+.security-text strong {
+    display: block;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.security-text small {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.demo-info {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 350px;
+    width: 100%;
+    height: fit-content;
+}
+
+.demo-card h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.demo-card ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.demo-card li {
+    margin: 8px 0;
+    color: #555;
+    line-height: 1.4;
+}
+
+.demo-tech {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+.security-features {
+    margin-top: 10px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+    font-size: 0.9rem;
+}
+
+.feature-icon {
+    margin-right: 8px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .post-creation-container {
+        flex-direction: column;
+        padding: 20px;
+    }
+    
+    .post-creation-card {
+        min-width: auto;
+        padding: 20px;
+    }
+    
+    .post-title {
+        font-size: 2rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-actions .btn {
+        justify-content: center;
+    }
+    
+    .editor-toolbar {
+        flex-wrap: wrap;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .post-creation-card {
+        background: #2d3748;
+        color: white;
+    }
+    
+    .post-title {
+        color: white;
+    }
+    
+    .form-input {
+        background: #4a5568;
+        border-color: #4a5568;
+        color: white;
+    }
+    
+    .form-input::placeholder {
+        color: #a0aec0;
+    }
+    
+    .editor-toolbar {
+        background: #4a5568;
+        border-color: #4a5568;
+    }
+    
+    .toolbar-btn:hover {
+        background: #2d3748;
+    }
+    
+    .demo-info {
+        background: #2d3748;
+        color: white;
+    }
+    
+    .preview-container {
+        border-color: #4a5568;
+    }
+    
+    .preview-header {
+        background: #4a5568;
+        border-color: #4a5568;
+    }
+}
+</style>
+{% endblock %}

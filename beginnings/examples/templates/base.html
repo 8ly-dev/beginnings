@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    
+    <!-- CSRF Token for AJAX (auto-injected by framework) -->
+    {% if csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endif %}
+    
+    <!-- Framework security features badge -->
+    <style{% if request.state.csp_style_nonce %} nonce="{{ request.state.csp_style_nonce }}"{% endif %}>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .navbar {
+            background: #fff;
+            border-bottom: 1px solid #dee2e6;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .navbar-nav {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            gap: 1rem;
+        }
+        .nav-link {
+            color: #6c757d;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .nav-link:hover, .nav-link.active {
+            background: #e9ecef;
+            color: #495057;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        .framework-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .alert {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+        .alert-info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-outline {
+            background: transparent;
+            color: #007bff;
+            border: 1px solid #007bff;
+        }
+        .btn-outline:hover {
+            background: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Framework Features Badge -->
+    <div class="framework-badge">🚀 Beginnings Framework</div>
+
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">{{ site_name }}</a>
+        <ul class="navbar-nav">
+            <li><a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a></li>
+            {% if current_user %}
+                <li><a href="/tasks" class="nav-link {% if active_page == 'tasks' %}active{% endif %}">Tasks</a></li>
+                {% if current_user.role == 'admin' %}
+                <li><a href="/admin" class="nav-link {% if active_page == 'admin' %}active{% endif %}">Admin</a></li>
+                {% endif %}
+                <li><a href="/docs" class="nav-link" target="_blank">API</a></li>
+                <li><span class="nav-link">{{ current_user.username }} ({{ current_user.role }})</span></li>
+                <li><a href="/logout" class="nav-link">Logout</a></li>
+            {% else %}
+                <li><a href="/login" class="nav-link {% if active_page == 'login' %}active{% endif %}">Login</a></li>
+                <li><a href="/docs" class="nav-link" target="_blank">API</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Framework JavaScript utilities -->
+    <script{% if request.state.csp_script_nonce %} nonce="{{ request.state.csp_script_nonce }}"{% endif %}>
+        // CSRF token helper
+        function getCSRFToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : null;
+        }
+        
+        // Auto-add CSRF tokens to forms
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form[method="post"], form[method="POST"]');
+            forms.forEach(form => {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    const token = getCSRFToken();
+                    if (token) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'csrf_token';
+                        input.value = token;
+                        form.appendChild(input);
+                    }
+                }
+            });
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
