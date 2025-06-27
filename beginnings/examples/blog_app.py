@@ -70,6 +70,7 @@ def create_blog_app() -> App:
     @html_router.get("/")
     def blog_home() -> HTMLResponse:
         """Blog home page with list of posts."""
+        raise RuntimeError("Blog home page")
         posts_html = ""
         for post in BLOG_POSTS.values():
             if post.published:
@@ -244,6 +245,16 @@ def create_blog_app() -> App:
     def test_api_error() -> None:
         """Test API route that throws an error."""
         raise HTTPException(status_code=404, detail="This is a test API error")
+
+    @html_router.get("/test-500")
+    def test_500_error() -> None:
+        """Test route that throws a 500 error."""
+        raise HTTPException(status_code=500, detail="This is a test 500 error")
+    
+    @html_router.get("/test-runtime-error")
+    def test_runtime_error() -> None:
+        """Test route that throws a RuntimeError."""
+        raise RuntimeError("This is a test RuntimeError")
     
     # Include routers in the app
     app.include_router(html_router)

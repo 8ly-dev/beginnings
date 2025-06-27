@@ -13,6 +13,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from beginnings.config.enhanced_loader import EnhancedConfigLoader
 from beginnings.config.environment import EnvironmentDetector
@@ -21,6 +22,28 @@ from beginnings.extensions.base import BaseExtension
 from beginnings.extensions.loader import ExtensionManager
 from beginnings.routing.api import APIRouter
 from beginnings.routing.html import HTMLRouter
+
+
+class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
+    """Middleware to catch all unhandled exceptions and apply our error theme."""
+    
+    def __init__(self, app: Any, app_instance: "App") -> None:
+        super().__init__(app)
+        self.app_instance = app_instance
+    
+    async def dispatch(self, request: Request, call_next: Any) -> Any:
+        try:
+            response = await call_next(request)
+            return response
+        except Exception as exc:
+            # Convert any unhandled exception to HTTPException for consistent handling
+            if not isinstance(exc, HTTPException):
+                http_exc = HTTPException(status_code=500, detail="An internal error occurred")
+            else:
+                http_exc = exc
+            
+            # Use our beautiful error handling
+            return await self.app_instance._handle_http_exception(request, http_exc)
 
 
 class App(FastAPI):
@@ -84,6 +107,9 @@ class App(FastAPI):
         
         # Set up content-aware error handling
         self._setup_error_handlers()
+        
+        # Add middleware to catch all unhandled exceptions
+        self.add_middleware(ExceptionHandlerMiddleware, app_instance=self)
 
     def get_config(self) -> dict[str, Any]:
         """
@@ -231,6 +257,15 @@ class App(FastAPI):
             # Create HTTPException if we don't have one
             if not isinstance(exc, HTTPException):
                 exc = HTTPException(status_code=404, detail="Page not found")
+            return await self._handle_http_exception(request, exc)
+        
+        # Handle general Python exceptions (RuntimeError, etc.)
+        @self.exception_handler(Exception)
+        async def general_exception_handler(request: Request, exc: Exception) -> Any:
+            """Handle general Python exceptions with content-aware responses."""
+            # Convert to HTTPException with 500 status
+            if not isinstance(exc, HTTPException):
+                exc = HTTPException(status_code=500, detail="An internal error occurred")
             return await self._handle_http_exception(request, exc)
 
     async def _handle_http_exception(self, request: Request, exc: HTTPException) -> Any:
@@ -390,6 +425,35 @@ class App(FastAPI):
         
         .back-link:hover .arrow {{
             transform: translateX(-4px);
+        }}
+        
+        /* Dark mode styles */
+        @media (prefers-color-scheme: dark) {{
+            body {{
+                background: #1a1a1a;
+                color: #ffffff;
+            }}
+            
+            .error-code {{
+                color: #ffffff;
+            }}
+            
+            .error-message {{
+                color: #cccccc;
+            }}
+            
+            .error-detail {{
+                color: #999999;
+            }}
+            
+            .back-link {{
+                color: #ffffff;
+            }}
+            
+            .back-link:hover {{
+                background: #333333;
+                color: #ffffff;
+            }}
         }}
         
         .button-container {{

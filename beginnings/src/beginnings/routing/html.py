@@ -459,6 +459,35 @@ class HTMLRouter(FastAPIRouter):
             transform: translateX(-4px);
         }}
         
+        /* Dark mode styles */
+        @media (prefers-color-scheme: dark) {{
+            body {{
+                background: #1a1a1a;
+                color: #ffffff;
+            }}
+            
+            .error-code {{
+                color: #ffffff;
+            }}
+            
+            .error-message {{
+                color: #cccccc;
+            }}
+            
+            .error-detail {{
+                color: #999999;
+            }}
+            
+            .back-link {{
+                color: #ffffff;
+            }}
+            
+            .back-link:hover {{
+                background: #333333;
+                color: #ffffff;
+            }}
+        }}
+        
         .button-container {{
             text-align: right;
             clear: both;
