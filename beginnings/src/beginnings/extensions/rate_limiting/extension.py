@@ -14,6 +14,7 @@ from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from beginnings.extensions.base import BaseExtension
+from beginnings.extensions.rate_limiting.trusted_proxies import TrustedProxyManager
 
 
 class RateLimitStorage:
@@ -104,6 +105,10 @@ class RateLimitExtension(BaseExtension):
         self.limit_header = headers_config.get("limit_header", "X-RateLimit-Limit")
         self.reset_header = headers_config.get("reset_header", "X-RateLimit-Reset")
         self.retry_after_header = headers_config.get("retry_after_header", "Retry-After")
+        
+        # Trusted proxy manager for IP validation
+        proxy_config = config.get("trusted_proxies", {"enabled": True})
+        self.proxy_manager = TrustedProxyManager(proxy_config)
     
     def get_middleware_factory(self) -> Callable[[dict[str, Any]], Callable[..., Any]]:
         """
@@ -221,21 +226,24 @@ class RateLimitExtension(BaseExtension):
             return self._get_client_ip(request)
     
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP address from request."""
-        # Check for forwarded headers first
-        forwarded_for = request.headers.get("x-forwarded-for")
-        if forwarded_for:
-            return f"ip:{forwarded_for.split(',')[0].strip()}"
-        
-        real_ip = request.headers.get("x-real-ip")
-        if real_ip:
-            return f"ip:{real_ip}"
-        
-        # Fall back to direct client IP
+        """Extract client IP address from request with proxy validation."""
+        # Get direct connection IP
+        remote_addr = "unknown"
         if hasattr(request, "client") and request.client:
-            return f"ip:{request.client.host}"
+            remote_addr = request.client.host
         
-        return "ip:unknown"
+        # Get forwarded headers
+        forwarded_for = request.headers.get("x-forwarded-for")
+        real_ip = request.headers.get("x-real-ip")
+        
+        # Use trusted proxy manager to extract real IP
+        real_ip_address = self.proxy_manager.extract_real_ip(
+            remote_addr=remote_addr,
+            forwarded_for=forwarded_for,
+            real_ip=real_ip
+        )
+        
+        return f"ip:{real_ip_address}"
     
     async def _handle_rate_limit_exceeded(
         self,
@@ -330,5 +338,10 @@ class RateLimitExtension(BaseExtension):
                 
                 if window_seconds <= 0:
                     errors.append(f"Route '{route_pattern}' window_seconds must be positive")
+        
+        # Validate trusted proxy configuration
+        proxy_errors = self.proxy_manager.validate_config()
+        for error in proxy_errors:
+            errors.append(f"Rate limiting trusted proxies: {error}")
         
         return errors

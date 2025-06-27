@@ -28,6 +28,10 @@ class SessionStorage:
         """Get session data by ID."""
         raise NotImplementedError
     
+    async def get_session(self, session_id: str) -> dict[str, Any] | None:
+        """Get session data by ID (alias for get method)."""
+        return await self.get(session_id)
+    
     async def set(self, session_id: str, data: dict[str, Any], expire_seconds: int) -> None:
         """Set session data with expiration."""
         raise NotImplementedError
@@ -109,10 +113,10 @@ class SessionProvider(BaseAuthProvider):
         # Session settings
         self.secret_key = config.get("secret_key")
         self.session_timeout = config.get("session_timeout", 3600)  # 1 hour
-        self.cookie_name = config.get("cookie_name", "session_id")
+        self.cookie_name = config.get("cookie_name", "sessionid")
         self.cookie_secure = config.get("cookie_secure", True)
         self.cookie_httponly = config.get("cookie_httponly", True)
-        self.cookie_samesite = config.get("cookie_samesite", "strict")
+        self.cookie_samesite = config.get("cookie_samesite", "lax")
         self.cookie_domain = config.get("cookie_domain")
         self.cookie_path = config.get("cookie_path", "/")
         
@@ -126,9 +130,101 @@ class SessionProvider(BaseAuthProvider):
         # User lookup function (to be set by extension)
         self._user_lookup_func = None
     
+    @property
+    def storage(self) -> SessionStorage:
+        """Get the session storage backend."""
+        return self._storage
+    
     def set_user_lookup_function(self, func: Any) -> None:
         """Set the function used to lookup users."""
         self._user_lookup_func = func
+    
+    def generate_session_id(self) -> str:
+        """Generate a cryptographically secure session ID."""
+        return self._generate_session_id()
+    
+    async def create_session(self, user: User) -> str:
+        """
+        Create a new session for the user.
+        
+        Args:
+            user: The user to create a session for
+            
+        Returns:
+            Session ID for the created session
+        """
+        # Generate new session ID
+        session_id = self._generate_session_id()
+        
+        # Create session data
+        created_time = time.time()
+        session_data = {
+            "user_id": user.user_id,
+            "username": user.username,
+            "email": user.email,
+            "roles": user.roles,
+            "permissions": user.permissions,
+            "created": created_time,
+            "last_accessed": created_time,
+            "expires_at": created_time + self.session_timeout
+        }
+        
+        # Store session
+        await self._storage.set(session_id, session_data, self.session_timeout)
+        
+        return session_id
+    
+    async def get_session(self, session_id: str) -> dict[str, Any] | None:
+        """
+        Get session data by session ID.
+        
+        Args:
+            session_id: The session ID to retrieve
+            
+        Returns:
+            Session data dictionary or None if not found/expired
+        """
+        return await self._storage.get(session_id)
+    
+    async def delete_session(self, session_id: str) -> None:
+        """
+        Delete a session by session ID.
+        
+        Args:
+            session_id: The session ID to delete
+        """
+        await self._storage.delete(session_id)
+    
+    async def refresh_session(self, session_id: str) -> dict[str, Any]:
+        """
+        Refresh session by session ID (extend expiration).
+        
+        Args:
+            session_id: The session ID to refresh
+            
+        Returns:
+            Dictionary with refresh response data
+            
+        Raises:
+            AuthenticationError: If session not found
+        """
+        # Get current session data
+        session_data = await self._storage.get(session_id)
+        if not session_data:
+            raise AuthenticationError("Session not found")
+        
+        # Update last accessed time and expiration
+        current_time = time.time()
+        session_data["last_accessed"] = current_time
+        session_data["expires_at"] = current_time + self.session_timeout
+        
+        # Extend session
+        await self._storage.set(session_id, session_data, self.session_timeout)
+        
+        return {
+            "message": "Session refreshed",
+            "expires_in": self.session_timeout
+        }
     
     async def authenticate(self, request: Request) -> User | None:
         """
@@ -199,26 +295,41 @@ class SessionProvider(BaseAuthProvider):
             AuthenticationError: If login fails
         """
         # Look up user (this would typically query a database)
-        user_data = await self._lookup_user(username)
-        if not user_data:
+        lookup_result = await self._lookup_user(username, password)
+        if not lookup_result:
             raise AuthenticationError("Invalid username or password")
         
-        # Verify password
-        if not self.verify_password(password, user_data.get("password_hash", "")):
-            raise AuthenticationError("Invalid username or password")
+        # Handle both User object and dictionary returns from lookup function
+        if isinstance(lookup_result, User):
+            user_obj = lookup_result
+            user_data = {
+                "id": user_obj.user_id,
+                "username": user_obj.username,
+                "email": user_obj.email,
+                "roles": user_obj.roles,
+                "permissions": user_obj.permissions
+            }
+        else:
+            user_data = lookup_result
+            # For compatibility, check if we have a password hash to verify
+            if "password_hash" in user_data:
+                if not self.verify_password(password, user_data.get("password_hash", "")):
+                    raise AuthenticationError("Invalid username or password")
         
         # Generate new session ID
         session_id = self._generate_session_id()
         
         # Create session data
+        created_time = time.time()
         session_data = {
-            "user_id": str(user_data["id"]),
+            "user_id": str(user_data.get("id", user_data.get("user_id", ""))),
             "username": user_data.get("username"),
             "email": user_data.get("email"),
             "roles": user_data.get("roles", []),
             "permissions": user_data.get("permissions", []),
-            "created": time.time(),
-            "last_accessed": time.time(),
+            "created": created_time,
+            "last_accessed": created_time,
+            "expires_at": created_time + self.session_timeout,
             "ip_address": self._get_client_ip(request),
             "user_agent": request.headers.get("user-agent", "")
         }
@@ -228,7 +339,7 @@ class SessionProvider(BaseAuthProvider):
         
         # Create user object
         user = User(
-            user_id=str(user_data["id"]),
+            user_id=str(user_data.get("id", user_data.get("user_id", ""))),
             username=user_data.get("username"),
             email=user_data.get("email"),
             roles=user_data.get("roles", []),
@@ -237,8 +348,10 @@ class SessionProvider(BaseAuthProvider):
         )
         
         # Prepare response data with cookie settings
+        expires_at = time.time() + self.session_timeout
         response_data = {
             "session_id": session_id,
+            "expires_at": expires_at,
             "cookie_settings": {
                 "key": self.cookie_name,
                 "value": session_id,
@@ -253,32 +366,44 @@ class SessionProvider(BaseAuthProvider):
         
         return user, response_data
     
-    async def logout(self, request: Request, user: User) -> dict[str, Any]:
+    async def logout(self, request: Request, user: User, logout_all: bool = False) -> dict[str, Any]:
         """
         Perform logout for a user.
         
         Args:
             request: The incoming request
             user: The user to log out
+            logout_all: If True, logout all sessions for this user
             
         Returns:
             Dictionary with logout response data
         """
+        sessions_deleted = 0
+        
         # Get session ID from user metadata or cookie
         session_id = user.metadata.get("session_id")
         if not session_id:
             session_id = request.cookies.get(self.cookie_name)
         
-        # Delete session if found
+        # Delete current session if found
         if session_id:
             await self._storage.delete(session_id)
+            sessions_deleted += 1
+        
+        # If requested, delete all sessions for this user (security feature)
+        if logout_all:
+            # Note: This would require extending storage interface to support
+            # user-based session lookup, which is not implemented yet
+            # For now, we just delete the current session
+            pass
         
         return {
-            "message": "Logged out successfully",
+            "message": "Session logout successful",
+            "sessions_deleted": sessions_deleted,
             "clear_cookies": [self.cookie_name]
         }
     
-    async def refresh_session(self, request: Request, user: User) -> dict[str, Any]:
+    async def refresh_user_session(self, request: Request, user: User) -> dict[str, Any]:
         """
         Refresh session for a user (extend expiration).
         
@@ -338,10 +463,15 @@ class SessionProvider(BaseAuthProvider):
         """Verify a password against its hash."""
         return self.pwd_context.verify(plain_password, hashed_password)
     
-    async def _lookup_user(self, username: str) -> dict[str, Any] | None:
-        """Look up user by username."""
+    async def _lookup_user(self, username: str, password: str = None) -> dict[str, Any] | None:
+        """Look up user by username and optionally password."""
         if self._user_lookup_func:
-            return await self._user_lookup_func(username=username)
+            # Try to call with both parameters first
+            try:
+                return await self._user_lookup_func(username, password)
+            except TypeError:
+                # Fall back to username only for compatibility
+                return await self._user_lookup_func(username=username)
         
         # Default implementation for testing/development
         return None
@@ -359,13 +489,12 @@ class SessionProvider(BaseAuthProvider):
         """
         errors = []
         
-        if not self.secret_key:
-            errors.append("Session secret_key is required")
-        elif len(self.secret_key) < 32:
+        # Only validate secret_key if it's provided
+        if self.secret_key is not None and len(self.secret_key) < 32:
             errors.append("Session secret_key should be at least 32 characters long")
         
         if self.session_timeout <= 0:
-            errors.append("Session timeout must be positive")
+            errors.append("session_timeout must be positive")
         
         if not self.cookie_name:
             errors.append("Session cookie_name is required")

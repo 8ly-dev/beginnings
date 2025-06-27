@@ -150,9 +150,13 @@ class CSRFExtension(BaseExtension):
         token = None
         
         # Check form data for POST requests
-        if request.method == "POST" and hasattr(request, "_form"):
-            form_data = await request.form()
-            token = form_data.get(self.form_field_name)
+        if request.method in self.protected_methods:
+            try:
+                form_data = await request.form()
+                token = form_data.get(self.form_field_name)
+            except Exception:
+                # Form data not available or already consumed
+                pass
         
         # Check headers (for AJAX requests)
         if not token:
@@ -171,8 +175,9 @@ class CSRFExtension(BaseExtension):
         session_token = None
         
         # Try to get session from request context (if auth extension is enabled)
-        if hasattr(request.state, "user") and request.state.user:
-            session_id = getattr(request.state.user.metadata, "session_id", None)
+        if hasattr(request.state, "user") and request.state.user and hasattr(request.state.user, "metadata"):
+            if isinstance(request.state.user.metadata, dict):
+                session_id = request.state.user.metadata.get("session_id")
         
         # For double-submit cookie pattern
         if self.token_manager.double_submit_cookie:
@@ -193,8 +198,9 @@ class CSRFExtension(BaseExtension):
         """Add CSRF-related headers and meta tags to response."""
         # Generate token for response
         session_id = None
-        if hasattr(request.state, "user") and request.state.user:
-            session_id = getattr(request.state.user.metadata, "session_id", None)
+        if hasattr(request.state, "user") and request.state.user and hasattr(request.state.user, "metadata"):
+            if isinstance(request.state.user.metadata, dict):
+                session_id = request.state.user.metadata.get("session_id")
         
         token = self.token_manager.get_token_for_template(session_id)
         
@@ -216,7 +222,8 @@ class CSRFExtension(BaseExtension):
         if isinstance(response, HTMLResponse) and self.template_integration_enabled:
             content = response.body.decode() if response.body else ""
             if "</head>" in content:
-                meta_tag = f'<meta name="{self.meta_tag_name}" content="{token}">'
+                from html import escape
+                meta_tag = f'<meta name="{escape(self.meta_tag_name)}" content="{escape(token)}">'
                 content = content.replace("</head>", f"{meta_tag}\n</head>")
                 response.body = content.encode()
         
@@ -288,8 +295,9 @@ class CSRFExtension(BaseExtension):
             CSRF token for templates
         """
         session_id = None
-        if hasattr(request.state, "user") and request.state.user:
-            session_id = getattr(request.state.user.metadata, "session_id", None)
+        if hasattr(request.state, "user") and request.state.user and hasattr(request.state.user, "metadata"):
+            if isinstance(request.state.user.metadata, dict):
+                session_id = request.state.user.metadata.get("session_id")
         
         return self.token_manager.get_token_for_template(session_id)
     

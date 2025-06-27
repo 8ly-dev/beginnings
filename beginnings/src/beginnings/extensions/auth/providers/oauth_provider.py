@@ -66,61 +66,85 @@ class OAuthProvider(BaseAuthProvider):
                 default_config.update(provider_config)
                 self.providers[provider_name] = default_config
     
-    def generate_state(self) -> str:
+    def generate_state(self, expire_minutes: int = 10) -> str:
         """
-        Generate state parameter for CSRF protection.
+        Generate state parameter for CSRF protection with expiration.
+        
+        Args:
+            expire_minutes: State expiration time in minutes
         
         Returns:
             URL-safe state parameter
         """
+        import time
+        import struct
+        
         # Generate random data
         random_data = secrets.token_bytes(16)
+        
+        # Add timestamp for expiration (4 bytes)
+        expire_time = int(time.time()) + (expire_minutes * 60)
+        timestamp_data = struct.pack('>I', expire_time)
+        
+        # Combine random data and timestamp
+        payload = random_data + timestamp_data
         
         # Create HMAC signature
         signature = hmac.new(
             self.state_secret.encode(),
-            random_data,
+            payload,
             hashlib.sha256
         ).digest()
         
         # Combine and encode
-        state_data = random_data + signature
+        state_data = payload + signature
         return base64.urlsafe_b64encode(state_data).decode().rstrip('=')
     
     def validate_state(self, state: str) -> bool:
         """
-        Validate state parameter.
+        Validate state parameter with expiration check.
         
         Args:
             state: State parameter to validate
             
         Returns:
-            True if state is valid
+            True if state is valid and not expired
         """
         if not state:
             return False
         
         try:
+            import time
+            import struct
+            
             # Add padding and decode
             padded_state = state + '=' * (4 - len(state) % 4)
             state_bytes = base64.urlsafe_b64decode(padded_state)
             
-            if len(state_bytes) < 48:  # 16 bytes random + 32 bytes signature
+            if len(state_bytes) < 52:  # 16 bytes random + 4 bytes timestamp + 32 bytes signature
                 return False
             
-            # Split random data and signature
-            random_data = state_bytes[:16]
-            received_signature = state_bytes[16:48]
+            # Split payload and signature
+            payload = state_bytes[:20]  # 16 bytes random + 4 bytes timestamp
+            received_signature = state_bytes[20:52]
             
             # Calculate expected signature
             expected_signature = hmac.new(
                 self.state_secret.encode(),
-                random_data,
+                payload,
                 hashlib.sha256
             ).digest()
             
             # Compare signatures
-            return hmac.compare_digest(received_signature, expected_signature)
+            if not hmac.compare_digest(received_signature, expected_signature):
+                return False
+            
+            # Check expiration
+            timestamp_data = payload[16:20]
+            expire_time = struct.unpack('>I', timestamp_data)[0]
+            current_time = int(time.time())
+            
+            return current_time <= expire_time
             
         except Exception:
             return False
@@ -371,9 +395,8 @@ class OAuthProvider(BaseAuthProvider):
         if not code:
             return None  # Not an OAuth callback
         
-        # Validate state parameter
-        stored_state = getattr(request, "session", {}).get("oauth_state")
-        if not state or not stored_state or state != stored_state:
+        # Validate state parameter using cryptographic validation
+        if not self.validate_state(state):
             raise AuthenticationError("Invalid OAuth state parameter")
         
         # Get stored OAuth parameters

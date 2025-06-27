@@ -36,7 +36,11 @@ class CSPManager:
         self.nonce_enabled = nonce_config.get("enabled", False)
         self.script_nonce = nonce_config.get("script_nonce", True)
         self.style_nonce = nonce_config.get("style_nonce", True)
-        self.nonce_length = nonce_config.get("nonce_length", 16)
+        self.nonce_length = max(16, nonce_config.get("nonce_length", 16))  # Enforce minimum 16 bytes
+        
+        # Nonce tracking for reuse prevention
+        self._nonce_cache: set[str] = set()
+        self._cache_max_size = 10000  # Prevent memory bloat
         
         # Valid CSP directives for validation
         self.valid_directives = {
@@ -48,13 +52,32 @@ class CSPManager:
     
     def generate_nonce(self) -> str:
         """
-        Generate a cryptographically secure nonce for CSP.
+        Generate a cryptographically secure nonce for CSP with reuse prevention.
         
         Returns:
             Base64-encoded nonce string
         """
-        nonce_bytes = secrets.token_bytes(self.nonce_length)
-        return base64.urlsafe_b64encode(nonce_bytes).decode('ascii').rstrip('=')
+        max_attempts = 10
+        
+        for _ in range(max_attempts):
+            # Generate cryptographically secure nonce
+            nonce_bytes = secrets.token_bytes(self.nonce_length)
+            nonce = base64.urlsafe_b64encode(nonce_bytes).decode('ascii').rstrip('=')
+            
+            # Check for reuse (very unlikely but important for security)
+            if nonce not in self._nonce_cache:
+                # Add to cache for reuse prevention
+                self._nonce_cache.add(nonce)
+                
+                # Prevent memory bloat by limiting cache size
+                if len(self._nonce_cache) > self._cache_max_size:
+                    # Remove oldest entries (this is a simple approach)
+                    self._nonce_cache = set(list(self._nonce_cache)[-self._cache_max_size//2:])
+                
+                return nonce
+        
+        # This should never happen with proper random generation
+        raise RuntimeError("Failed to generate unique nonce after maximum attempts")
     
     def build_csp_header(
         self,
@@ -155,10 +178,17 @@ class CSPManager:
         
         # Validate nonce configuration
         if self.nonce_enabled:
-            if self.nonce_length < 8:
-                errors.append("CSP nonce length must be at least 8 bytes")
+            if self.nonce_length < 16:
+                errors.append("CSP nonce length must be at least 16 bytes for security")
             elif self.nonce_length > 64:
                 errors.append("CSP nonce length should not exceed 64 bytes")
+            
+            # Validate that nonces are being used correctly with CSP directives
+            if self.script_nonce and "script_src" not in self.directives:
+                errors.append("CSP script nonce enabled but no script_src directive configured")
+            
+            if self.style_nonce and "style_src" not in self.directives:
+                errors.append("CSP style nonce enabled but no style_src directive configured")
         
         # Validate directive values
         for directive, sources in self.directives.items():

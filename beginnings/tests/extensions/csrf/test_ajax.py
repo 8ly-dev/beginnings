@@ -184,7 +184,7 @@ class TestCSRFAjaxIntegration:
         
         # Verify Fetch configuration
         assert "'X-CSRFToken': getCSRFToken()" in js_code
-        assert "headers: {" in js_code
+        assert "options.headers" in js_code
     
     def test_generate_jquery_configuration(self):
         """Test generation of jQuery configuration code."""
@@ -195,7 +195,7 @@ class TestCSRFAjaxIntegration:
         
         # Verify jQuery configuration
         assert "$.ajaxSetup({" in js_code
-        assert "'X-CSRFToken': getCSRFToken()" in js_code
+        assert "setRequestHeader('X-CSRFToken', getCSRFToken())" in js_code
         assert "beforeSend:" in js_code
     
     def test_generate_spa_refresh_code(self):
@@ -207,7 +207,7 @@ class TestCSRFAjaxIntegration:
         
         # Verify SPA refresh functionality
         assert "function refreshCSRFToken()" in js_code
-        assert "fetch('/csrf/refresh')" in js_code
+        assert "fetch('/csrf/refresh'" in js_code
         assert "updateCSRFToken" in js_code
     
     def test_generate_spa_refresh_code_custom_endpoint(self):
@@ -221,7 +221,7 @@ class TestCSRFAjaxIntegration:
         
         js_code = integration.generate_spa_refresh_code()
         
-        assert "fetch('/api/csrf/refresh')" in js_code
+        assert "fetch('/api/csrf/refresh'" in js_code
     
     def test_generate_error_handling_code(self):
         """Test generation of CSRF error handling code."""

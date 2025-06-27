@@ -20,6 +20,7 @@ from beginnings.extensions.auth.providers.base import (
     BaseAuthProvider,
     User,
 )
+from beginnings.extensions.auth.token_blacklist import TokenBlacklistManager
 
 
 class JWTProvider(BaseAuthProvider):
@@ -52,6 +53,10 @@ class JWTProvider(BaseAuthProvider):
         
         # User lookup function (to be set by extension)
         self._user_lookup_func = None
+        
+        # Token blacklist manager
+        blacklist_config = config.get("blacklist", {"enabled": True})
+        self.blacklist_manager = TokenBlacklistManager(blacklist_config)
     
     def set_user_lookup_function(self, func: Any) -> None:
         """Set the function used to lookup users."""
@@ -96,6 +101,10 @@ class JWTProvider(BaseAuthProvider):
             user_id = payload.get("sub")
             if not user_id:
                 raise AuthenticationError("Token missing user ID")
+            
+            # Check if token is blacklisted
+            if await self.blacklist_manager.is_token_blacklisted(payload):
+                raise AuthenticationError("Token has been revoked")
             
             # Extract user information from token
             username = payload.get("username")
@@ -176,10 +185,53 @@ class JWTProvider(BaseAuthProvider):
         Returns:
             Dictionary with logout response data
         """
-        # For JWT, logout is typically handled client-side by discarding tokens
-        # In a more sophisticated implementation, you might maintain a token blacklist
+        tokens_blacklisted = 0
+        
+        # Extract and blacklist current access token
+        auth_header = request.headers.get("authorization")
+        access_token = None
+        
+        if auth_header and auth_header.startswith("Bearer "):
+            access_token = auth_header[7:]
+        elif not access_token:
+            access_token = request.cookies.get("access_token")
+        
+        if access_token:
+            try:
+                # Decode token to get payload for blacklisting
+                payload = jwt.decode(
+                    access_token,
+                    self.secret_key,
+                    algorithms=[self.algorithm],
+                    issuer=self.issuer,
+                    audience=self.audience
+                )
+                await self.blacklist_manager.blacklist_token(payload)
+                tokens_blacklisted += 1
+            except JWTError:
+                # Token is invalid, but we still want to clear cookies
+                pass
+        
+        # Also blacklist refresh token if available
+        refresh_token = request.cookies.get("refresh_token")
+        if refresh_token:
+            try:
+                payload = jwt.decode(
+                    refresh_token,
+                    self.secret_key,
+                    algorithms=[self.algorithm],
+                    issuer=self.issuer,
+                    audience=self.audience
+                )
+                await self.blacklist_manager.blacklist_token(payload)
+                tokens_blacklisted += 1
+            except JWTError:
+                # Token is invalid, but we still want to clear cookies
+                pass
+        
         return {
             "message": "Logged out successfully",
+            "tokens_revoked": tokens_blacklisted,
             "clear_cookies": ["access_token", "refresh_token"]
         }
     
@@ -206,7 +258,8 @@ class JWTProvider(BaseAuthProvider):
             "exp": expire,
             "iss": self.issuer,
             "aud": self.audience,
-            "type": "access"
+            "type": "access",
+            "jti": secrets.token_urlsafe(32)  # Unique token ID for blacklisting
         }
         
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
@@ -260,6 +313,10 @@ class JWTProvider(BaseAuthProvider):
             
             if payload.get("type") != "refresh":
                 raise AuthenticationError("Invalid token type")
+            
+            # Check if refresh token is blacklisted
+            if await self.blacklist_manager.is_token_blacklisted(payload):
+                raise AuthenticationError("Refresh token has been revoked")
             
             user_id = payload.get("sub")
             if not user_id:
@@ -335,5 +392,10 @@ class JWTProvider(BaseAuthProvider):
         
         if self.refresh_token_expire_days <= 0:
             errors.append("JWT refresh_token_expire_days must be positive")
+        
+        # Validate blacklist configuration
+        blacklist_errors = self.blacklist_manager.validate_config()
+        for error in blacklist_errors:
+            errors.append(f"JWT blacklist: {error}")
         
         return errors
