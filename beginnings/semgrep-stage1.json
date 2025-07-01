@@ -1,0 +1,1 @@
+{"version":"1.127.1","results":[],"errors":[{"code":2,"level":"error","type":"SemgrepError","message":"Invalid scanning root: beginnings/src"}],"paths":{"scanned":[]},"skipped_rules":[]}

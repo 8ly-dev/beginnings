@@ -11,6 +11,7 @@ from .commands.run import (
 )
 from .commands.extension import extension_group
 from .commands.docs import docs_group
+from .commands.migrate import migrate_group
 from .utils.colors import Colors, format_message
 from .utils.errors import CLIError, handle_cli_error
 
@@ -68,6 +69,7 @@ cli.add_command(new_command)
 cli.add_command(run_command)
 cli.add_command(extension_group)
 cli.add_command(docs_group)
+cli.add_command(migrate_group)
 
 # Add auto-reload commands
 cli.add_command(dev_command)

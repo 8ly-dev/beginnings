@@ -473,6 +473,340 @@ def backup_migrations(migration_path, output):
         error(f"Failed to create backup: {e}")
 
 
+# Framework-specific migration commands
+
+@click.command(name="from-flask")
+@click.option(
+    "--source", "-s",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    required=True,
+    help="Source Flask project directory"
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(),
+    required=True,
+    help="Output directory for Beginnings project"
+)
+@click.option(
+    "--preserve-structure",
+    is_flag=True,
+    help="Preserve original Flask project structure"
+)
+@click.option(
+    "--convert-config",
+    is_flag=True,
+    default=True,
+    help="Convert Flask configuration to Beginnings format"
+)
+@click.option(
+    "--convert-auth",
+    is_flag=True,
+    default=True,
+    help="Convert Flask authentication to Beginnings auth extension"
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview migration without creating files"
+)
+@click.option(
+    "--generate-report",
+    is_flag=True,
+    help="Generate detailed migration report"
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Enable verbose output"
+)
+@click.pass_context
+def migrate_from_flask(
+    ctx, source, output, preserve_structure, convert_config, convert_auth,
+    dry_run, generate_report, verbose
+):
+    """Migrate Flask application to Beginnings framework.
+    
+    This command analyzes a Flask application and converts it to use the
+    Beginnings framework, preserving functionality while updating to use
+    Beginnings patterns and extensions.
+    """
+    from ...migration.frameworks.flask_migrator import FlaskMigrator
+    
+    try:
+        
+        if verbose:
+            info(f"Analyzing Flask project: {source}")
+        
+        migrator = FlaskMigrator(
+            source_dir=source,
+            output_dir=output,
+            preserve_structure=preserve_structure,
+            convert_config=convert_config,
+            convert_auth=convert_auth,
+            verbose=verbose
+        )
+        
+        # Run migration
+        result = asyncio.run(migrator.migrate(dry_run=dry_run))
+        
+        if dry_run:
+            success("Flask migration preview completed")
+            info("Preview results:")
+            info(f"  Routes detected: {result.get('routes_count', 0)}")
+            info(f"  Blueprints detected: {result.get('blueprints_count', 0)}")
+            info(f"  Templates found: {result.get('templates_count', 0)}")
+            info(f"  Configuration files: {result.get('config_files', 0)}")
+        else:
+            success("Migration completed successfully!")
+            info(f"Beginnings project created at: {highlight(output)}")
+            
+            if result.get('blueprints_count', 0) > 0:
+                info(f"Converted {result['blueprints_count']} Flask blueprints to route modules")
+            
+            if result.get('auth_detected'):
+                info("Flask authentication converted to Beginnings auth extension")
+        
+        # Generate report if requested
+        if generate_report:
+            report_path = Path(output) / "migration_report.md"
+            migrator.generate_report(result, report_path)
+            info(f"Migration report: {report_path}")
+        
+    except Exception as e:
+        error(f"Flask migration failed: {e}")
+        if verbose:
+            import traceback
+            error(traceback.format_exc())
+        ctx.exit(1)
+
+
+@click.command(name="from-django")
+@click.option(
+    "--source", "-s",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    required=True,
+    help="Source Django project directory"
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(),
+    required=True,
+    help="Output directory for Beginnings project"
+)
+@click.option(
+    "--convert-models",
+    is_flag=True,
+    default=True,
+    help="Convert Django models to equivalent data structures"
+)
+@click.option(
+    "--convert-views",
+    is_flag=True,
+    default=True,
+    help="Convert Django views to Beginnings routes"
+)
+@click.option(
+    "--convert-auth",
+    is_flag=True,
+    default=True,
+    help="Convert Django authentication to Beginnings auth extension"
+)
+@click.option(
+    "--convert-admin",
+    is_flag=True,
+    help="Generate admin interface equivalent"
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview migration without creating files"
+)
+@click.option(
+    "--generate-report",
+    is_flag=True,
+    help="Generate detailed migration report"
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Enable verbose output"
+)
+@click.pass_context
+def migrate_from_django(
+    ctx, source, output, convert_models, convert_views, convert_auth,
+    convert_admin, dry_run, generate_report, verbose
+):
+    """Migrate Django application to Beginnings framework.
+    
+    This command analyzes a Django application and converts it to use the
+    Beginnings framework, including models, views, and Django-specific
+    features to their Beginnings equivalents.
+    """
+    from ...migration.frameworks.django_migrator import DjangoMigrator
+    
+    try:
+        
+        if verbose:
+            info(f"Analyzing Django project: {source}")
+        
+        migrator = DjangoMigrator(
+            source_dir=source,
+            output_dir=output,
+            convert_models=convert_models,
+            convert_views=convert_views,
+            convert_auth=convert_auth,
+            convert_admin=convert_admin,
+            verbose=verbose
+        )
+        
+        # Run migration
+        result = asyncio.run(migrator.migrate(dry_run=dry_run))
+        
+        if dry_run:
+            success("Django migration preview completed")
+            info("Preview results:")
+            info(f"  Apps detected: {result.get('apps_count', 0)}")
+            info(f"  Models detected: {result.get('models_count', 0)}")
+            info(f"  Views detected: {result.get('views_count', 0)}")
+            info(f"  URLs detected: {result.get('urls_count', 0)}")
+        else:
+            success("Migration completed successfully!")
+            info(f"Beginnings project created at: {highlight(output)}")
+            
+            if result.get('models_count', 0) > 0:
+                info(f"Converted {result['models_count']} Django models")
+            
+            if result.get('admin_detected'):
+                info("Django admin interface patterns preserved")
+        
+        # Generate report if requested
+        if generate_report:
+            report_path = Path(output) / "migration_report.md"
+            migrator.generate_report(result, report_path)
+            info(f"Migration report: {report_path}")
+        
+    except Exception as e:
+        error(f"Django migration failed: {e}")
+        if verbose:
+            import traceback
+            error(traceback.format_exc())
+        ctx.exit(1)
+
+
+@click.command(name="from-fastapi")
+@click.option(
+    "--source", "-s",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    required=True,
+    help="Source FastAPI project directory"
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(),
+    required=True,
+    help="Output directory for Beginnings project"
+)
+@click.option(
+    "--preserve-structure",
+    is_flag=True,
+    help="Preserve original FastAPI project structure"
+)
+@click.option(
+    "--convert-models",
+    is_flag=True,
+    default=True,
+    help="Convert Pydantic models to Beginnings data structures"
+)
+@click.option(
+    "--convert-auth",
+    is_flag=True,
+    default=True,
+    help="Convert FastAPI authentication to Beginnings auth extension"
+)
+@click.option(
+    "--convert-dependencies",
+    is_flag=True,
+    default=True,
+    help="Convert FastAPI dependencies to Beginnings middleware"
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview migration without creating files"
+)
+@click.option(
+    "--generate-report",
+    is_flag=True,
+    help="Generate detailed migration report"
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Enable verbose output"
+)
+@click.pass_context
+def migrate_from_fastapi(
+    ctx, source, output, preserve_structure, convert_models, convert_auth,
+    convert_dependencies, dry_run, generate_report, verbose
+):
+    """Migrate FastAPI application to Beginnings framework.
+    
+    This command analyzes a FastAPI application and converts it to use the
+    Beginnings framework, preserving the API structure while adapting to
+    Beginnings patterns and extensions.
+    """
+    from ...migration.frameworks.fastapi_migrator import FastAPIMigrator
+    
+    try:
+        
+        if verbose:
+            info(f"Analyzing FastAPI project: {source}")
+        
+        migrator = FastAPIMigrator(
+            source_dir=source,
+            output_dir=output,
+            preserve_structure=preserve_structure,
+            convert_models=convert_models,
+            convert_auth=convert_auth,
+            convert_dependencies=convert_dependencies,
+            verbose=verbose
+        )
+        
+        # Run migration
+        result = asyncio.run(migrator.migrate(dry_run=dry_run))
+        
+        if dry_run:
+            success("FastAPI migration preview completed")
+            info("Preview results:")
+            info(f"  Routes detected: {result.get('routes_count', 0)}")
+            info(f"  Routers detected: {result.get('routers_count', 0)}")
+            info(f"  Models detected: {result.get('models_count', 0)}")
+            info(f"  Dependencies detected: {result.get('dependencies_count', 0)}")
+        else:
+            success("Migration completed successfully!")
+            info(f"Beginnings project created at: {highlight(output)}")
+            
+            if result.get('routers_count', 0) > 0:
+                info(f"Converted {result['routers_count']} FastAPI routers to route modules")
+            
+            if result.get('auth_detected'):
+                info("FastAPI authentication converted to Beginnings auth extension")
+        
+        # Generate report if requested
+        if generate_report:
+            report_path = Path(output) / "migration_report.md"
+            migrator.generate_report(result, report_path)
+            info(f"Migration report: {report_path}")
+        
+    except Exception as e:
+        error(f"FastAPI migration failed: {e}")
+        if verbose:
+            import traceback
+            error(traceback.format_exc())
+        ctx.exit(1)
+
+
 # Register commands
 migrate_group.add_command(run_migrations)
 migrate_group.add_command(rollback_migrations)
@@ -482,3 +816,8 @@ migrate_group.add_command(validate_migrations)
 migrate_group.add_command(create_migration)
 migrate_group.add_command(migration_report)
 migrate_group.add_command(backup_migrations)
+
+# Register framework migration commands
+migrate_group.add_command(migrate_from_flask)
+migrate_group.add_command(migrate_from_django)
+migrate_group.add_command(migrate_from_fastapi)

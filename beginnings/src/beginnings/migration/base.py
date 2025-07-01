@@ -211,3 +211,40 @@ class BaseMigration(abc.ABC):
     
     def __hash__(self) -> int:
         return hash(self.migration_id)
+
+
+class BaseMigrator(abc.ABC):
+    """Base class for framework migrators."""
+    
+    def __init__(self, source_dir: str, output_dir: str, verbose: bool = False):
+        """Initialize migrator.
+        
+        Args:
+            source_dir: Source framework project directory
+            output_dir: Output directory for Beginnings project
+            verbose: Enable verbose output
+        """
+        self.source_dir = source_dir
+        self.output_dir = output_dir
+        self.verbose = verbose
+    
+    @abc.abstractmethod
+    async def migrate(self, dry_run: bool = False) -> Dict[str, Any]:
+        """Perform migration from source framework to Beginnings.
+        
+        Args:
+            dry_run: If True, only analyze without creating files
+            
+        Returns:
+            Migration results dictionary
+        """
+        pass
+    
+    def generate_report(self, result: Dict[str, Any], report_path) -> None:
+        """Generate migration report.
+        
+        Args:
+            result: Migration results
+            report_path: Path to save report
+        """
+        pass
