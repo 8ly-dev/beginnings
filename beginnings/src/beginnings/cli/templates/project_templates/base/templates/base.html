@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ title | default("{{ project_name_title }}") }}{% endblock %}</title>
+    
+    {% if include_csrf %}
+    <!-- CSRF token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endif %}
+    
+    <!-- Styles -->
+    {% if include_security_headers %}
+    <style nonce="{{ request.state.csp_style_nonce }}">
+    {% else %}
+    <style>
+    {% endif %}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        nav h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        nav ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            gap: 2rem;
+        }
+        
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        nav a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        main {
+            background: white;
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 60vh;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .alert {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .alert-info {
+            background-color: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: #7f8c8d;
+            background: #ecf0f1;
+            margin-top: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+    </style>
+    
+    <link href="{{ url_for('static', path='/css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <h1>{{ project_name_title }}</h1>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/about">About</a></li>
+                    {% if include_auth %}
+                    <li><a href="/dashboard">Dashboard</a></li>
+                    <li><a href="/login">Login</a></li>
+                    {% endif %}
+                    {% if include_api %}
+                    <li><a href="/docs" target="_blank">API Docs</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <div class="container">
+        <main>
+            {% block content %}
+            <h1>{{ title | default("Welcome") }}</h1>
+            <p>{{ content | default("Welcome to your beginnings application!") }}</p>
+            {% endblock %}
+        </main>
+    </div>
+    
+    <footer>
+        <div class="container">
+            <p>Powered by <strong>beginnings</strong> framework</p>
+            {% if include_auth %}
+            <p>🔒 Authentication enabled</p>
+            {% endif %}
+            {% if include_csrf %}
+            <p>🛡️ CSRF protection active</p>
+            {% endif %}
+            {% if include_rate_limiting %}
+            <p>⚡ Rate limiting enabled</p>
+            {% endif %}
+        </div>
+    </footer>
+    
+    {% if include_csrf %}
+    <!-- CSRF token JavaScript helper -->
+    {% if include_security_headers %}
+    <script nonce="{{ request.state.csp_script_nonce }}">
+    {% else %}
+    <script>
+    {% endif %}
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+        
+        // Add CSRF token to all forms automatically
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form[method="post"], form[method="put"], form[method="delete"]');
+            forms.forEach(function(form) {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrf_token';
+                    csrfInput.value = getCSRFToken();
+                    form.appendChild(csrfInput);
+                }
+            });
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

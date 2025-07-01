@@ -1,0 +1,313 @@
+"""{{ extension_name | title }} authentication provider extension."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, List, Optional
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from beginnings.extensions.base import BaseExtension
+from beginnings.extensions.auth.providers.base import BaseAuthProvider
+
+
+class {{ extension_name | title }}Extension(BaseExtension):
+    """{{ extension_name | title }} authentication provider extension.
+    
+    This extension provides {{ extension_name }} authentication functionality
+    through a custom authentication provider.
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        """Initialize {{ extension_name }} extension.
+        
+        Args:
+            config: Extension configuration
+        """
+        super().__init__(config)
+        self.enabled = config.get("enabled", True)
+        
+        # Provider configuration
+        self.provider_config = config.get("provider", {})
+        self.auth_provider = {{ extension_name | title }}AuthProvider(self.provider_config)
+        
+        # Authentication options
+        self.require_auth = config.get("require_auth", True)
+        self.protected_routes = config.get("protected_routes", [])
+        self.public_routes = config.get("public_routes", [])
+    
+    def validate_config(self) -> List[str]:
+        """Validate extension configuration.
+        
+        Returns:
+            List of validation error messages
+        """
+        errors = []
+        
+        if not isinstance(self.enabled, bool):
+            errors.append("enabled must be a boolean")
+        
+        if not isinstance(self.require_auth, bool):
+            errors.append("require_auth must be a boolean")
+        
+        if not isinstance(self.protected_routes, list):
+            errors.append("protected_routes must be a list")
+        
+        if not isinstance(self.public_routes, list):
+            errors.append("public_routes must be a list")
+        
+        # Validate provider configuration
+        provider_errors = self.auth_provider.validate_config()
+        errors.extend([f"provider.{err}" for err in provider_errors])
+        
+        return errors
+    
+    def should_apply_to_route(
+        self, 
+        path: str, 
+        methods: List[str], 
+        route_config: Dict[str, Any]
+    ) -> bool:
+        """Determine if this extension should apply to the given route.
+        
+        Args:
+            path: Route path
+            methods: HTTP methods for the route
+            route_config: Route-specific configuration
+            
+        Returns:
+            True if extension should apply to this route
+        """
+        if not self.enabled:
+            return False
+        
+        # Check if route is explicitly public
+        for public_pattern in self.public_routes:
+            if self._matches_pattern(path, public_pattern):
+                return False
+        
+        # Check if route is explicitly protected
+        for protected_pattern in self.protected_routes:
+            if self._matches_pattern(path, protected_pattern):
+                return True
+        
+        # Check route-specific configuration
+        route_auth_config = route_config.get("auth", {})
+        route_requires_auth = route_auth_config.get("required", self.require_auth)
+        
+        return route_requires_auth
+    
+    def get_middleware_factory(self) -> Callable[[Dict[str, Any]], BaseHTTPMiddleware]:
+        """Get middleware factory for this extension.
+        
+        Returns:
+            Factory function that creates middleware instances
+        """
+        def create_middleware(route_config: Dict[str, Any]) -> BaseHTTPMiddleware:
+            return {{ extension_name | title }}AuthMiddleware(
+                auth_provider=self.auth_provider,
+                extension_config=self.config,
+                route_config=route_config
+            )
+        
+        return create_middleware
+    
+    def _matches_pattern(self, path: str, pattern: str) -> bool:
+        """Check if path matches a route pattern.
+        
+        Args:
+            path: Route path
+            pattern: Pattern to match (supports wildcards)
+            
+        Returns:
+            True if path matches pattern
+        """
+        import fnmatch
+        return fnmatch.fnmatch(path, pattern)
+
+
+class {{ extension_name | title }}AuthProvider(BaseAuthProvider):
+    """{{ extension_name | title }} authentication provider implementation."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        """Initialize authentication provider.
+        
+        Args:
+            config: Provider configuration
+        """
+        super().__init__(config)
+        
+        # Add your provider-specific configuration here
+        self.api_key = config.get("api_key")
+        self.secret_key = config.get("secret_key")
+        self.endpoint_url = config.get("endpoint_url", "https://api.example.com")
+    
+    def validate_config(self) -> List[str]:
+        """Validate provider configuration.
+        
+        Returns:
+            List of validation error messages
+        """
+        errors = []
+        
+        if not self.api_key:
+            errors.append("api_key is required")
+        
+        if not self.secret_key:
+            errors.append("secret_key is required")
+        
+        if not self.endpoint_url:
+            errors.append("endpoint_url is required")
+        
+        return errors
+    
+    async def authenticate(self, request: Request) -> Optional[Dict[str, Any]]:
+        """Authenticate a request.
+        
+        Args:
+            request: Incoming request
+            
+        Returns:
+            User information if authenticated, None otherwise
+        """
+        # Add your authentication logic here
+        # Example: Extract token from headers and validate
+        
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return None
+        
+        if not auth_header.startswith("Bearer "):
+            return None
+        
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        
+        # Validate token with your authentication service
+        user_info = await self._validate_token(token)
+        return user_info
+    
+    async def _validate_token(self, token: str) -> Optional[Dict[str, Any]]:
+        """Validate authentication token.
+        
+        Args:
+            token: Authentication token
+            
+        Returns:
+            User information if valid, None otherwise
+        """
+        # Add your token validation logic here
+        # This could involve:
+        # - Making API calls to validate the token
+        # - Decoding and validating JWT tokens
+        # - Checking against a database
+        
+        # Placeholder implementation
+        if token == "valid_token":
+            return {
+                "user_id": "123",
+                "username": "testuser",
+                "roles": ["user"]
+            }
+        
+        return None
+
+
+class {{ extension_name | title }}AuthMiddleware(BaseHTTPMiddleware):
+    """{{ extension_name | title }} authentication middleware."""
+    
+    def __init__(
+        self, 
+        app,
+        auth_provider: {{ extension_name | title }}AuthProvider,
+        extension_config: Dict[str, Any],
+        route_config: Dict[str, Any]
+    ):
+        """Initialize middleware.
+        
+        Args:
+            app: ASGI application
+            auth_provider: Authentication provider instance
+            extension_config: Extension-level configuration
+            route_config: Route-specific configuration
+        """
+        super().__init__(app)
+        self.auth_provider = auth_provider
+        self.extension_config = extension_config
+        self.route_config = route_config
+        
+        # Extract route-specific auth configuration
+        self.route_auth_config = route_config.get("auth", {})
+        self.required_roles = self.route_auth_config.get("roles", [])
+        self.required_permissions = self.route_auth_config.get("permissions", [])
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Process authentication for the request.
+        
+        Args:
+            request: Incoming request
+            call_next: Next middleware/endpoint in chain
+            
+        Returns:
+            Response object
+        """
+        # Authenticate the request
+        user_info = await self.auth_provider.authenticate(request)
+        
+        if not user_info:
+            return self._create_unauthorized_response()
+        
+        # Check role requirements
+        if self.required_roles and not self._check_roles(user_info, self.required_roles):
+            return self._create_forbidden_response()
+        
+        # Check permission requirements
+        if self.required_permissions and not self._check_permissions(user_info, self.required_permissions):
+            return self._create_forbidden_response()
+        
+        # Add user info to request state
+        request.state.user = user_info
+        
+        # Continue with request processing
+        response = await call_next(request)
+        return response
+    
+    def _check_roles(self, user_info: Dict[str, Any], required_roles: List[str]) -> bool:
+        """Check if user has required roles.
+        
+        Args:
+            user_info: User information from authentication
+            required_roles: List of required roles
+            
+        Returns:
+            True if user has all required roles
+        """
+        user_roles = user_info.get("roles", [])
+        return all(role in user_roles for role in required_roles)
+    
+    def _check_permissions(self, user_info: Dict[str, Any], required_permissions: List[str]) -> bool:
+        """Check if user has required permissions.
+        
+        Args:
+            user_info: User information from authentication
+            required_permissions: List of required permissions
+            
+        Returns:
+            True if user has all required permissions
+        """
+        user_permissions = user_info.get("permissions", [])
+        return all(perm in user_permissions for perm in required_permissions)
+    
+    def _create_unauthorized_response(self) -> Response:
+        """Create 401 Unauthorized response."""
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Authentication required"}
+        )
+    
+    def _create_forbidden_response(self) -> Response:
+        """Create 403 Forbidden response."""
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=403,
+            content={"error": "Insufficient permissions"}
+        )

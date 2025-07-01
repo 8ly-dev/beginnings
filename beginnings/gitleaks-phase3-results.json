@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "curl-auth-header",
+  "Description": "Discovered a potential authorization token provided in a curl command header, which could compromise the curl accessed resource.",
+  "StartLine": 51,
+  "EndLine": 55,
+  "StartColumn": 96,
+  "EndColumn": 137,
+  "Match": "curl -X POST {{ request.url_for('api_login') }} \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"username\": \"admin\", \"password\": \"password\"}'\u003c/code\u003e\u003c/pre\u003e\n    \u003cp\u003eThen use the returned token in subsequent requests:\u003c/p\u003e\n    \u003cpre style=\"background: #fff; padding: 1rem; border-radius: 4px; overflow-x: auto;\"\u003e\u003ccode\u003ecurl -H \"Authorization: Bearer YOUR_TOKEN\"",
+  "Secret": "YOUR_TOKEN",
+  "File": "src/beginnings/cli/templates/project_templates/base/templates/auth/login.html",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.121928,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "src/beginnings/cli/templates/project_templates/base/templates/auth/login.html:curl-auth-header:51"
+ }
+]

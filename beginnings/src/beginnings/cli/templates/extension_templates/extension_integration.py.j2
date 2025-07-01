@@ -1,0 +1,316 @@
+"""{{ extension_name | title }} integration extension."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, List, Optional
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from beginnings.extensions.base import BaseExtension
+
+
+class {{ extension_name | title }}Extension(BaseExtension):
+    """{{ extension_name | title }} integration extension.
+    
+    This extension provides integration with {{ extension_name }} service,
+    including client setup, webhook handling, and event processing.
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        """Initialize {{ extension_name }} extension.
+        
+        Args:
+            config: Extension configuration
+        """
+        super().__init__(config)
+        self.enabled = config.get("enabled", True)
+        
+        # Integration configuration
+        self.api_key = config.get("api_key")
+        self.api_secret = config.get("api_secret")
+        self.base_url = config.get("base_url", "https://api.example.com")
+        self.timeout = config.get("timeout", 30)
+        
+        # Webhook configuration
+        self.webhook_path = config.get("webhook_path", "/webhooks/{{ extension_name }}")
+        self.webhook_secret = config.get("webhook_secret")
+        self.enable_webhooks = config.get("enable_webhooks", True)
+        
+        # Event processing
+        self.enable_events = config.get("enable_events", True)
+        self.event_queue_size = config.get("event_queue_size", 1000)
+    
+    def validate_config(self) -> List[str]:
+        """Validate extension configuration.
+        
+        Returns:
+            List of validation error messages
+        """
+        errors = []
+        
+        if not isinstance(self.enabled, bool):
+            errors.append("enabled must be a boolean")
+        
+        if not self.api_key:
+            errors.append("api_key is required")
+        
+        if not self.api_secret:
+            errors.append("api_secret is required")
+        
+        if not isinstance(self.base_url, str):
+            errors.append("base_url must be a string")
+        
+        if not isinstance(self.timeout, (int, float)) or self.timeout <= 0:
+            errors.append("timeout must be a positive number")
+        
+        if self.enable_webhooks and not self.webhook_secret:
+            errors.append("webhook_secret is required when webhooks are enabled")
+        
+        return errors
+    
+    def should_apply_to_route(
+        self, 
+        path: str, 
+        methods: List[str], 
+        route_config: Dict[str, Any]
+    ) -> bool:
+        """Determine if this extension should apply to the given route.
+        
+        Args:
+            path: Route path
+            methods: HTTP methods for the route
+            route_config: Route-specific configuration
+            
+        Returns:
+            True if extension should apply to this route
+        """
+        if not self.enabled:
+            return False
+        
+        # Apply to webhook endpoints
+        if path.startswith(self.webhook_path):
+            return True
+        
+        # Check route-specific configuration
+        route_integration_config = route_config.get("{{ extension_name }}", {})
+        return route_integration_config.get("enabled", False)
+    
+    def get_middleware_factory(self) -> Callable[[Dict[str, Any]], BaseHTTPMiddleware]:
+        """Get middleware factory for this extension.
+        
+        Returns:
+            Factory function that creates middleware instances
+        """
+        def create_middleware(route_config: Dict[str, Any]) -> BaseHTTPMiddleware:
+            return {{ extension_name | title }}Middleware(
+                extension_config=self.config,
+                route_config=route_config
+            )
+        
+        return create_middleware
+    
+    def get_startup_handler(self) -> Optional[Callable]:
+        """Get startup handler for integration initialization.
+        
+        Returns:
+            Async startup handler function
+        """
+        async def startup():
+            """Initialize integration on application startup."""
+            # Initialize client connection
+            await self._initialize_client()
+            
+            # Set up event processing
+            if self.enable_events:
+                await self._setup_event_processing()
+            
+            # Verify webhook configuration
+            if self.enable_webhooks:
+                await self._setup_webhooks()
+        
+        return startup
+    
+    def get_shutdown_handler(self) -> Optional[Callable]:
+        """Get shutdown handler for integration cleanup.
+        
+        Returns:
+            Async shutdown handler function
+        """
+        async def shutdown():
+            """Clean up integration on application shutdown."""
+            # Close client connections
+            await self._cleanup_client()
+            
+            # Stop event processing
+            if self.enable_events:
+                await self._cleanup_event_processing()
+        
+        return shutdown
+    
+    async def _initialize_client(self):
+        """Initialize integration client."""
+        # Add your client initialization logic here
+        # This could involve:
+        # - Setting up HTTP client
+        # - Authenticating with the service
+        # - Testing connection
+        pass
+    
+    async def _setup_event_processing(self):
+        """Set up event processing."""
+        # Add your event processing setup here
+        # This could involve:
+        # - Starting background workers
+        # - Setting up queues
+        # - Initializing event handlers
+        pass
+    
+    async def _setup_webhooks(self):
+        """Set up webhook processing."""
+        # Add your webhook setup here
+        # This could involve:
+        # - Registering webhook endpoints with the service
+        # - Setting up signature validation
+        # - Testing webhook connectivity
+        pass
+    
+    async def _cleanup_client(self):
+        """Clean up client connections."""
+        # Add your cleanup logic here
+        pass
+    
+    async def _cleanup_event_processing(self):
+        """Clean up event processing."""
+        # Add your cleanup logic here
+        pass
+
+
+class {{ extension_name | title }}Middleware(BaseHTTPMiddleware):
+    """{{ extension_name | title }} integration middleware."""
+    
+    def __init__(
+        self, 
+        app,
+        extension_config: Dict[str, Any],
+        route_config: Dict[str, Any]
+    ):
+        """Initialize middleware.
+        
+        Args:
+            app: ASGI application
+            extension_config: Extension-level configuration
+            route_config: Route-specific configuration
+        """
+        super().__init__(app)
+        self.extension_config = extension_config
+        self.route_config = route_config
+        
+        # Extract configuration
+        self.webhook_path = extension_config.get("webhook_path", "/webhooks/{{ extension_name }}")
+        self.webhook_secret = extension_config.get("webhook_secret")
+        self.enable_logging = extension_config.get("enable_logging", True)
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Process request for {{ extension_name }} integration.
+        
+        Args:
+            request: Incoming request
+            call_next: Next middleware/endpoint in chain
+            
+        Returns:
+            Response object
+        """
+        # Handle webhook requests
+        if request.url.path.startswith(self.webhook_path):
+            return await self._handle_webhook(request, call_next)
+        
+        # Handle regular requests with integration context
+        return await self._handle_regular_request(request, call_next)
+    
+    async def _handle_webhook(self, request: Request, call_next: Callable) -> Response:
+        """Handle webhook requests.
+        
+        Args:
+            request: Webhook request
+            call_next: Next middleware/endpoint in chain
+            
+        Returns:
+            Response object
+        """
+        # Validate webhook signature
+        if not await self._validate_webhook_signature(request):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Invalid webhook signature"}
+            )
+        
+        # Log webhook if enabled
+        if self.enable_logging:
+            await self._log_webhook(request)
+        
+        # Process webhook
+        response = await call_next(request)
+        return response
+    
+    async def _handle_regular_request(self, request: Request, call_next: Callable) -> Response:
+        """Handle regular requests with integration context.
+        
+        Args:
+            request: Regular request
+            call_next: Next middleware/endpoint in chain
+            
+        Returns:
+            Response object
+        """
+        # Add integration context to request
+        request.state.{{ extension_name }}_client = self._get_client()
+        
+        # Process request
+        response = await call_next(request)
+        return response
+    
+    async def _validate_webhook_signature(self, request: Request) -> bool:
+        """Validate webhook signature.
+        
+        Args:
+            request: Webhook request
+            
+        Returns:
+            True if signature is valid
+        """
+        if not self.webhook_secret:
+            # If no secret is configured, skip validation
+            return True
+        
+        # Add your signature validation logic here
+        # This typically involves:
+        # - Getting signature from headers
+        # - Computing expected signature from body + secret
+        # - Comparing signatures securely
+        
+        signature_header = request.headers.get("X-{{ extension_name | title }}-Signature")
+        if not signature_header:
+            return False
+        
+        # Placeholder validation - implement actual signature checking
+        return True
+    
+    async def _log_webhook(self, request: Request):
+        """Log webhook request.
+        
+        Args:
+            request: Webhook request
+        """
+        # Add your webhook logging logic here
+        pass
+    
+    def _get_client(self):
+        """Get integration client instance.
+        
+        Returns:
+            Client instance for making API calls
+        """
+        # Return configured client instance
+        # This would typically be a singleton or pooled connection
+        return None

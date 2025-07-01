@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 2rem auto;">
+    <h1 style="text-align: center; margin-bottom: 2rem;">Login</h1>
+    
+    {% if error %}
+    <div class="alert alert-error">
+        {{ error }}
+    </div>
+    {% endif %}
+    
+    <form method="post" style="background: #f8f9fa; padding: 2rem; border-radius: 8px;">
+        {% if include_csrf %}
+        {{ csrf_token() }}
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required 
+                   placeholder="Enter your username">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required 
+                   placeholder="Enter your password">
+        </div>
+        
+        <div class="form-group">
+            <button type="submit" class="btn" style="width: 100%;">Login</button>
+        </div>
+    </form>
+    
+    <div style="text-align: center; margin-top: 1rem; color: #666;">
+        <p>Demo credentials: any username and password will work</p>
+        <p style="font-size: 0.9rem;">
+            In production, integrate with your authentication system
+        </p>
+    </div>
+    
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="/" class="btn btn-secondary">Back to Home</a>
+    </div>
+</div>
+
+{% if include_api %}
+<div style="max-width: 600px; margin: 2rem auto; background: #f0f8ff; padding: 1.5rem; border-radius: 8px;">
+    <h3>API Authentication</h3>
+    <p>For API access, use the JWT endpoint:</p>
+    <pre style="background: #fff; padding: 1rem; border-radius: 4px; overflow-x: auto;"><code>curl -X POST {{ request.url_for('api_login') }} \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "password"}'</code></pre>
+    <p>Then use the returned token in subsequent requests:</p>
+    <pre style="background: #fff; padding: 1rem; border-radius: 4px; overflow-x: auto;"><code>curl -H "Authorization: Bearer YOUR_TOKEN" \
+  {{ request.url_for('get_users') }}</code></pre>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,275 @@
+# {{ extension_name | title }} Extension Configuration Reference
+
+## Configuration Overview
+
+The {{ extension_name | title }} extension supports both global and route-specific configuration.
+
+## Global Configuration
+
+Global configuration is specified in your application's main configuration file:
+
+```yaml
+{{ extension_name }}:
+  enabled: true
+  # Global configuration options
+```
+
+## Configuration Schema
+
+### Core Options
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `enabled` | boolean | No | `true` | Enable or disable the extension globally |
+
+{% if extension_type == "middleware" %}
+### Middleware Options
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `option1` | string | No | `"default_value"` | Example configuration option |
+| `option2` | boolean | No | `false` | Example boolean option |
+
+### Route-specific Configuration
+
+```yaml
+routes:
+  "/api/example":
+    methods: ["GET", "POST"]
+    {{ extension_name }}:
+      enabled: true
+      option1: "route_specific_value"
+```
+
+{% elif extension_type == "auth_provider" %}
+### Authentication Options
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `api_key` | string | Yes | - | API key for authentication service |
+| `secret_key` | string | Yes | - | Secret key for token validation |
+| `endpoint_url` | string | No | `"https://api.example.com"` | Authentication service endpoint |
+| `require_auth` | boolean | No | `true` | Require authentication by default |
+
+### Provider Configuration
+
+```yaml
+{{ extension_name }}:
+  provider:
+    api_key: "${API_KEY}"
+    secret_key: "${SECRET_KEY}"
+    endpoint_url: "https://auth.example.com"
+```
+
+### Route Protection
+
+```yaml
+# Protect specific routes
+routes:
+  "/admin/*":
+    {{ extension_name }}:
+      required: true
+      roles: ["admin"]
+
+# Public routes (no authentication)
+{{ extension_name }}:
+  public_routes:
+    - "/health"
+    - "/public/*"
+```
+
+{% elif extension_type == "feature" %}
+### Feature Options
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `api_prefix` | string | No | `"/{{ extension_name }}"` | Base path for API endpoints |
+| `enable_api` | boolean | No | `true` | Enable REST API endpoints |
+| `enable_ui` | boolean | No | `false` | Enable web UI components |
+| `db_table_prefix` | string | No | `"{{ extension_name }}_"` | Database table prefix |
+| `auto_migrate` | boolean | No | `true` | Automatically run database migrations |
+
+### Database Configuration
+
+```yaml
+{{ extension_name }}:
+  database:
+    table_prefix: "{{ extension_name }}_"
+    auto_migrate: true
+    connection: "default"
+```
+
+### API Configuration
+
+```yaml
+{{ extension_name }}:
+  api:
+    prefix: "/api/{{ extension_name }}"
+    enable_pagination: true
+    max_page_size: 100
+```
+
+{% elif extension_type == "integration" %}
+### Integration Options
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `api_key` | string | Yes | - | API key for external service |
+| `api_secret` | string | Yes | - | API secret for external service |
+| `base_url` | string | No | `"https://api.example.com"` | Base URL for service API |
+| `timeout` | number | No | `30` | Request timeout in seconds |
+
+### Webhook Configuration
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `webhook_path` | string | No | `"/webhooks/{{ extension_name }}"` | Webhook endpoint path |
+| `webhook_secret` | string | Conditional | - | Secret for webhook signature validation |
+| `enable_webhooks` | boolean | No | `true` | Enable webhook processing |
+
+### Event Processing
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `enable_events` | boolean | No | `true` | Enable event processing |
+| `event_queue_size` | number | No | `1000` | Maximum events in queue |
+
+```yaml
+{{ extension_name }}:
+  webhooks:
+    path: "/webhooks/{{ extension_name }}"
+    secret: "${WEBHOOK_SECRET}"
+    verify_signatures: true
+  
+  events:
+    enable_processing: true
+    queue_size: 1000
+    worker_count: 2
+```
+
+{% endif %}
+
+## Environment Variables
+
+The extension supports configuration via environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{ extension_name | upper }}_ENABLED` | Enable/disable extension | `true` |
+{% if extension_type in ["auth_provider", "integration"] %}
+| `{{ extension_name | upper }}_API_KEY` | API key | `your_api_key_here` |
+| `{{ extension_name | upper }}_SECRET_KEY` | Secret key | `your_secret_here` |
+{% endif %}
+
+## Configuration Examples
+
+### Development Environment
+
+```yaml
+{{ extension_name }}:
+  enabled: true
+  {% if extension_type == "middleware" -%}
+  option1: "development_value"
+  option2: true
+  {% elif extension_type == "auth_provider" -%}
+  api_key: "${DEV_API_KEY}"
+  secret_key: "${DEV_SECRET_KEY}"
+  endpoint_url: "https://dev-auth.example.com"
+  {% elif extension_type == "feature" -%}
+  api_prefix: "/dev/{{ extension_name }}"
+  enable_api: true
+  enable_ui: true
+  auto_migrate: true
+  {% elif extension_type == "integration" -%}
+  api_key: "${DEV_API_KEY}"
+  api_secret: "${DEV_SECRET_KEY}"
+  base_url: "https://dev-api.example.com"
+  enable_webhooks: false
+  {% endif %}
+```
+
+### Production Environment
+
+```yaml
+{{ extension_name }}:
+  enabled: true
+  {% if extension_type == "middleware" -%}
+  option1: "production_value"
+  option2: false
+  {% elif extension_type == "auth_provider" -%}
+  api_key: "${PROD_API_KEY}"
+  secret_key: "${PROD_SECRET_KEY}"
+  endpoint_url: "https://auth.example.com"
+  require_auth: true
+  {% elif extension_type == "feature" -%}
+  api_prefix: "/api/{{ extension_name }}"
+  enable_api: true
+  enable_ui: false
+  auto_migrate: false
+  {% elif extension_type == "integration" -%}
+  api_key: "${PROD_API_KEY}"
+  api_secret: "${PROD_SECRET_KEY}"
+  base_url: "https://api.example.com"
+  timeout: 60
+  enable_webhooks: true
+  webhook_secret: "${WEBHOOK_SECRET}"
+  {% endif %}
+```
+
+## Configuration Validation
+
+The extension validates configuration on startup. Common validation errors:
+
+- Missing required configuration options
+- Invalid data types or formats
+- Invalid URL formats
+- Missing environment variables
+
+### Validation Example
+
+```python
+from {{ extension_name }}.extension import {{ extension_name | title }}Extension
+
+config = {
+    "enabled": True,
+    # Add configuration
+}
+
+extension = {{ extension_name | title }}Extension(config)
+errors = extension.validate_config()
+
+if errors:
+    for error in errors:
+        print(f"Configuration error: {error}")
+```
+
+## Security Considerations
+
+{% if extension_type in ["auth_provider", "integration"] %}
+- Store API keys and secrets in environment variables
+- Use strong, unique secrets for production
+- Rotate secrets regularly
+- Limit API key permissions to minimum required
+{% endif %}
+- Enable configuration validation
+- Use HTTPS for all external communications
+- Monitor extension logs for security events
+
+## Troubleshooting Configuration
+
+### Common Issues
+
+1. **Extension not starting**
+   - Check required configuration is provided
+   - Verify environment variables are set
+   - Review configuration syntax
+
+2. **Validation errors**
+   - Check data types match expected formats
+   - Verify required fields are present
+   - Check for typos in configuration keys
+
+3. **Runtime configuration issues**
+   - Check configuration is properly loaded
+   - Verify environment-specific settings
+   - Review logs for configuration warnings

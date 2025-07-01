@@ -1,0 +1,377 @@
+"""Tests for {{ extension_name }} feature extension."""
+
+import pytest
+from typing import Dict, Any
+from unittest.mock import AsyncMock, MagicMock
+from fastapi.testclient import TestClient
+
+from {{ extension_name }}.extension import {{ extension_name | title }}Extension
+from {{ extension_name }}.models import {{ extension_name | title }}Model
+from {{ extension_name }}.routes import router
+
+
+class Test{{ extension_name | title }}Extension:
+    """Test {{ extension_name }} feature extension."""
+    
+    def test_init_with_default_config(self):
+        """Test extension initialization with default configuration."""
+        config = {"enabled": True}
+        extension = {{ extension_name | title }}Extension(config)
+        
+        assert extension.enabled is True
+        assert extension.api_prefix == "/{{ extension_name }}"
+        assert extension.enable_api is True
+        assert extension.enable_ui is False
+    
+    def test_init_with_custom_config(self):
+        """Test extension initialization with custom configuration."""
+        config = {
+            "enabled": True,
+            "api_prefix": "/custom/{{ extension_name }}",
+            "enable_api": True,
+            "enable_ui": True,
+            "auto_migrate": False
+        }
+        extension = {{ extension_name | title }}Extension(config)
+        
+        assert extension.api_prefix == "/custom/{{ extension_name }}"
+        assert extension.enable_ui is True
+        assert extension.auto_migrate is False
+    
+    def test_validate_config_valid(self, extension_config):
+        """Test configuration validation with valid config."""
+        extension = {{ extension_name | title }}Extension(extension_config)
+        errors = extension.validate_config()
+        assert errors == []
+    
+    def test_validate_config_invalid_api_prefix(self):
+        """Test configuration validation with invalid api_prefix."""
+        config = {"api_prefix": "invalid_prefix"}  # Should start with /
+        extension = {{ extension_name | title }}Extension(config)
+        
+        errors = extension.validate_config()
+        assert "api_prefix must start with '/'" in errors
+    
+    def test_should_apply_to_route_feature_prefix(self, extension_config):
+        """Test route application for feature API routes."""
+        extension = {{ extension_name | title }}Extension(extension_config)
+        result = extension.should_apply_to_route("/{{ extension_name }}/test", ["GET"], {})
+        assert result is True
+    
+    def test_should_apply_to_route_non_feature(self, extension_config):
+        """Test route application for non-feature routes."""
+        extension = {{ extension_name | title }}Extension(extension_config)
+        result = extension.should_apply_to_route("/other/endpoint", ["GET"], {})
+        assert result is False
+    
+    def test_should_apply_to_route_enabled_in_config(self, extension_config):
+        """Test route application with route-specific enable."""
+        extension = {{ extension_name | title }}Extension(extension_config)
+        route_config = {"{{ extension_name }}": {"enabled": True}}
+        result = extension.should_apply_to_route("/other/endpoint", ["GET"], route_config)
+        assert result is True
+    
+    @pytest.mark.asyncio
+    async def test_startup_handler(self, extension_config):
+        """Test startup handler."""
+        extension = {{ extension_name | title }}Extension(extension_config)
+        startup_handler = extension.get_startup_handler()
+        
+        assert startup_handler is not None
+        # Should not raise any exceptions
+        await startup_handler()
+    
+    @pytest.mark.asyncio
+    async def test_shutdown_handler(self, extension_config):
+        """Test shutdown handler."""
+        extension = {{ extension_name | title }}Extension(extension_config)
+        shutdown_handler = extension.get_shutdown_handler()
+        
+        assert shutdown_handler is not None
+        # Should not raise any exceptions
+        await shutdown_handler()
+
+
+class Test{{ extension_name | title }}Model:
+    """Test {{ extension_name }} model."""
+    
+    @pytest.fixture
+    def clean_storage(self):
+        """Clean model storage before each test."""
+        {{ extension_name | title }}Model._items.clear()
+        yield
+        {{ extension_name | title }}Model._items.clear()
+    
+    @pytest.mark.asyncio
+    async def test_create_item(self, clean_storage):
+        """Test creating an item."""
+        item_data = {"name": "Test Item", "description": "Test description"}
+        item = await {{ extension_name | title }}Model.create(item_data)
+        
+        assert item["name"] == "Test Item"
+        assert item["description"] == "Test description"
+        assert "id" in item
+        assert "created_at" in item
+        assert "updated_at" in item
+    
+    @pytest.mark.asyncio
+    async def test_get_item(self, clean_storage):
+        """Test getting an item by ID."""
+        # Create an item first
+        item_data = {"name": "Test Item"}
+        created_item = await {{ extension_name | title }}Model.create(item_data)
+        
+        # Get the item
+        retrieved_item = await {{ extension_name | title }}Model.get(created_item["id"])
+        
+        assert retrieved_item is not None
+        assert retrieved_item["id"] == created_item["id"]
+        assert retrieved_item["name"] == "Test Item"
+    
+    @pytest.mark.asyncio
+    async def test_get_nonexistent_item(self, clean_storage):
+        """Test getting a non-existent item."""
+        item = await {{ extension_name | title }}Model.get("nonexistent")
+        assert item is None
+    
+    @pytest.mark.asyncio
+    async def test_list_items(self, clean_storage):
+        """Test listing items."""
+        # Create some items
+        for i in range(5):
+            await {{ extension_name | title }}Model.create({"name": f"Item {i}"})
+        
+        # List items
+        items = await {{ extension_name | title }}Model.list(limit=3, offset=0)
+        
+        assert len(items) == 3
+        assert all("name" in item for item in items)
+    
+    @pytest.mark.asyncio
+    async def test_update_item(self, clean_storage):
+        """Test updating an item."""
+        # Create an item
+        item_data = {"name": "Original Name", "status": "active"}
+        created_item = await {{ extension_name | title }}Model.create(item_data)
+        
+        # Update the item
+        update_data = {"name": "Updated Name", "status": "inactive"}
+        updated_item = await {{ extension_name | title }}Model.update(created_item["id"], update_data)
+        
+        assert updated_item is not None
+        assert updated_item["name"] == "Updated Name"
+        assert updated_item["status"] == "inactive"
+        assert updated_item["created_at"] == created_item["created_at"]
+        assert updated_item["updated_at"] != created_item["updated_at"]
+    
+    @pytest.mark.asyncio
+    async def test_update_nonexistent_item(self, clean_storage):
+        """Test updating a non-existent item."""
+        result = await {{ extension_name | title }}Model.update("nonexistent", {"name": "New Name"})
+        assert result is None
+    
+    @pytest.mark.asyncio
+    async def test_delete_item(self, clean_storage):
+        """Test deleting an item."""
+        # Create an item
+        item_data = {"name": "To Delete"}
+        created_item = await {{ extension_name | title }}Model.create(item_data)
+        
+        # Delete the item
+        result = await {{ extension_name | title }}Model.delete(created_item["id"])
+        assert result is True
+        
+        # Verify it's gone
+        retrieved_item = await {{ extension_name | title }}Model.get(created_item["id"])
+        assert retrieved_item is None
+    
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_item(self, clean_storage):
+        """Test deleting a non-existent item."""
+        result = await {{ extension_name | title }}Model.delete("nonexistent")
+        assert result is False
+    
+    @pytest.mark.asyncio
+    async def test_count_items(self, clean_storage):
+        """Test counting items."""
+        # Create some items
+        for i in range(3):
+            await {{ extension_name | title }}Model.create({"name": f"Item {i}"})
+        
+        count = await {{ extension_name | title }}Model.count()
+        assert count == 3
+
+
+class Test{{ extension_name | title }}Routes:
+    """Test {{ extension_name }} API routes."""
+    
+    @pytest.fixture
+    def client(self, app):
+        """Create test client with routes."""
+        app.include_router(router)
+        return TestClient(app)
+    
+    @pytest.fixture
+    def clean_storage(self):
+        """Clean model storage before each test."""
+        {{ extension_name | title }}Model._items.clear()
+        yield
+        {{ extension_name | title }}Model._items.clear()
+    
+    def test_list_empty(self, client, clean_storage):
+        """Test listing when no items exist."""
+        response = client.get("/{{ extension_name }}/")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
+    
+    def test_create_item(self, client, clean_storage):
+        """Test creating an item via API."""
+        item_data = {"name": "API Test Item", "description": "Created via API"}
+        response = client.post("/{{ extension_name }}/", json=item_data)
+        
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "API Test Item"
+        assert "id" in data
+    
+    def test_create_item_missing_name(self, client, clean_storage):
+        """Test creating item without required name."""
+        item_data = {"description": "No name provided"}
+        response = client.post("/{{ extension_name }}/", json=item_data)
+        
+        assert response.status_code == 400
+        assert "Name is required" in response.json()["detail"]
+    
+    def test_get_item(self, client, clean_storage):
+        """Test getting an item via API."""
+        # Create an item first
+        item_data = {"name": "Get Test Item"}
+        create_response = client.post("/{{ extension_name }}/", json=item_data)
+        created_item = create_response.json()
+        
+        # Get the item
+        response = client.get(f"/{{ extension_name }}/{created_item['id']}")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["id"] == created_item["id"]
+        assert data["name"] == "Get Test Item"
+    
+    def test_get_nonexistent_item(self, client, clean_storage):
+        """Test getting a non-existent item."""
+        response = client.get("/{{ extension_name }}/nonexistent")
+        assert response.status_code == 404
+        assert "Item not found" in response.json()["detail"]
+    
+    def test_update_item(self, client, clean_storage):
+        """Test updating an item via API."""
+        # Create an item first
+        item_data = {"name": "Update Test Item", "status": "active"}
+        create_response = client.post("/{{ extension_name }}/", json=item_data)
+        created_item = create_response.json()
+        
+        # Update the item
+        update_data = {"name": "Updated Item", "status": "inactive"}
+        response = client.put(f"/{{ extension_name }}/{created_item['id']}", json=update_data)
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["name"] == "Updated Item"
+        assert data["status"] == "inactive"
+    
+    def test_update_nonexistent_item(self, client, clean_storage):
+        """Test updating a non-existent item."""
+        update_data = {"name": "Updated Name"}
+        response = client.put("/{{ extension_name }}/nonexistent", json=update_data)
+        assert response.status_code == 404
+    
+    def test_delete_item(self, client, clean_storage):
+        """Test deleting an item via API."""
+        # Create an item first
+        item_data = {"name": "Delete Test Item"}
+        create_response = client.post("/{{ extension_name }}/", json=item_data)
+        created_item = create_response.json()
+        
+        # Delete the item
+        response = client.delete(f"/{{ extension_name }}/{created_item['id']}")
+        assert response.status_code == 200
+        assert "deleted successfully" in response.json()["message"]
+        
+        # Verify it's gone
+        get_response = client.get(f"/{{ extension_name }}/{created_item['id']}")
+        assert get_response.status_code == 404
+    
+    def test_delete_nonexistent_item(self, client, clean_storage):
+        """Test deleting a non-existent item."""
+        response = client.delete("/{{ extension_name }}/nonexistent")
+        assert response.status_code == 404
+    
+    def test_health_endpoint(self, client):
+        """Test health check endpoint."""
+        response = client.get("/{{ extension_name }}/health")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert data["feature"] == "{{ extension_name }}"
+
+
+class Test{{ extension_name | title }}Integration:
+    """Integration tests for {{ extension_name }} feature."""
+    
+    @pytest.fixture
+    def app_with_extension(self, app, extension_config):
+        """Create app with {{ extension_name }} extension configured."""
+        extension = {{ extension_name | title }}Extension(extension_config)
+        
+        # Add middleware
+        factory = extension.get_middleware_factory()
+        middleware = factory({})
+        app.add_middleware(type(middleware),
+                          extension_config=extension_config,
+                          route_config={})
+        
+        # Add routes
+        app.include_router(router)
+        
+        return app
+    
+    def test_full_crud_workflow(self, app_with_extension):
+        """Test complete CRUD workflow."""
+        client = TestClient(app_with_extension)
+        
+        # Clear storage
+        {{ extension_name | title }}Model._items.clear()
+        
+        # Create
+        item_data = {"name": "Integration Test", "description": "Full workflow test"}
+        create_response = client.post("/{{ extension_name }}/", json=item_data)
+        assert create_response.status_code == 201
+        item = create_response.json()
+        
+        # Read
+        get_response = client.get(f"/{{ extension_name }}/{item['id']}")
+        assert get_response.status_code == 200
+        assert get_response.json()["name"] == "Integration Test"
+        
+        # Update
+        update_data = {"name": "Updated Integration Test"}
+        update_response = client.put(f"/{{ extension_name }}/{item['id']}", json=update_data)
+        assert update_response.status_code == 200
+        assert update_response.json()["name"] == "Updated Integration Test"
+        
+        # List
+        list_response = client.get("/{{ extension_name }}/")
+        assert list_response.status_code == 200
+        assert len(list_response.json()["items"]) == 1
+        
+        # Delete
+        delete_response = client.delete(f"/{{ extension_name }}/{item['id']}")
+        assert delete_response.status_code == 200
+        
+        # Verify deletion
+        get_response = client.get(f"/{{ extension_name }}/{item['id']}")
+        assert get_response.status_code == 404

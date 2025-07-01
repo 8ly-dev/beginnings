@@ -1,0 +1,180 @@
+"""{{ extension_name | title }} feature routes."""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi.responses import JSONResponse
+
+from .models import {{ extension_name | title }}Model
+
+
+# Create router for {{ extension_name }} feature
+router = APIRouter(prefix="/{{ extension_name }}", tags=["{{ extension_name }}"])
+
+
+@router.get("/")
+async def list_{{ extension_name }}(
+    limit: int = 10,
+    offset: int = 0,
+    request: Request = None
+) -> JSONResponse:
+    """List {{ extension_name }} items.
+    
+    Args:
+        limit: Maximum number of items to return
+        offset: Number of items to skip
+        request: FastAPI request object
+        
+    Returns:
+        JSON response with list of items
+    """
+    try:
+        # Add your list logic here
+        items = await {{ extension_name | title }}Model.list(limit=limit, offset=offset)
+        
+        return JSONResponse({
+            "items": items,
+            "total": len(items),
+            "limit": limit,
+            "offset": offset
+        })
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{item_id}")
+async def get_{{ extension_name }}_item(
+    item_id: str,
+    request: Request = None
+) -> JSONResponse:
+    """Get a specific {{ extension_name }} item.
+    
+    Args:
+        item_id: ID of the item to retrieve
+        request: FastAPI request object
+        
+    Returns:
+        JSON response with item data
+    """
+    try:
+        item = await {{ extension_name | title }}Model.get(item_id)
+        
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        return JSONResponse(item)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/")
+async def create_{{ extension_name }}_item(
+    item_data: Dict[str, Any],
+    request: Request = None
+) -> JSONResponse:
+    """Create a new {{ extension_name }} item.
+    
+    Args:
+        item_data: Data for the new item
+        request: FastAPI request object
+        
+    Returns:
+        JSON response with created item
+    """
+    try:
+        # Validate item data
+        if not item_data.get("name"):
+            raise HTTPException(status_code=400, detail="Name is required")
+        
+        # Create item
+        item = await {{ extension_name | title }}Model.create(item_data)
+        
+        return JSONResponse(item, status_code=201)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{item_id}")
+async def update_{{ extension_name }}_item(
+    item_id: str,
+    item_data: Dict[str, Any],
+    request: Request = None
+) -> JSONResponse:
+    """Update a {{ extension_name }} item.
+    
+    Args:
+        item_id: ID of the item to update
+        item_data: Updated item data
+        request: FastAPI request object
+        
+    Returns:
+        JSON response with updated item
+    """
+    try:
+        # Check if item exists
+        existing_item = await {{ extension_name | title }}Model.get(item_id)
+        if not existing_item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        # Update item
+        item = await {{ extension_name | title }}Model.update(item_id, item_data)
+        
+        return JSONResponse(item)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{item_id}")
+async def delete_{{ extension_name }}_item(
+    item_id: str,
+    request: Request = None
+) -> JSONResponse:
+    """Delete a {{ extension_name }} item.
+    
+    Args:
+        item_id: ID of the item to delete
+        request: FastAPI request object
+        
+    Returns:
+        JSON response confirming deletion
+    """
+    try:
+        # Check if item exists
+        existing_item = await {{ extension_name | title }}Model.get(item_id)
+        if not existing_item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        # Delete item
+        await {{ extension_name | title }}Model.delete(item_id)
+        
+        return JSONResponse({"message": "Item deleted successfully"})
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/health")
+async def {{ extension_name }}_health() -> JSONResponse:
+    """Health check endpoint for {{ extension_name }} feature.
+    
+    Returns:
+        JSON response with health status
+    """
+    return JSONResponse({
+        "status": "healthy",
+        "feature": "{{ extension_name }}",
+        "version": "1.0.0"
+    })

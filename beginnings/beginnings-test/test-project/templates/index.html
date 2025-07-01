@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="text-align: center; padding: 2rem 0;">
+    <h1>Welcome to {{ project_name_title }}! 🚀</h1>
+    <p class="lead" style="font-size: 1.2rem; color: #666; margin-bottom: 2rem;">
+        Your beginnings application is ready and configured with powerful features.
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0;">
+    <div class="feature-card" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #28a745;">
+        <h3 style="color: #28a745; margin-top: 0;">🏗️ Framework Features</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li>✅ Configuration-driven architecture</li>
+            {% if include_html %}
+            <li>✅ HTML routes with template engine</li>
+            {% endif %}
+            {% if include_api %}
+            <li>✅ RESTful API endpoints</li>
+            {% endif %}
+            <li>✅ Environment-based configuration</li>
+            <li>✅ Extension system</li>
+        </ul>
+    </div>
+    
+    <div class="feature-card" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #dc3545;">
+        <h3 style="color: #dc3545; margin-top: 0;">🔒 Security Features</h3>
+        <ul style="list-style: none; padding: 0;">
+            {% if include_auth %}
+            <li>✅ Multi-provider authentication</li>
+            {% endif %}
+            {% if include_csrf %}
+            <li>✅ CSRF protection</li>
+            {% endif %}
+            {% if include_rate_limiting %}
+            <li>✅ Rate limiting</li>
+            {% endif %}
+            {% if include_security_headers %}
+            <li>✅ Security headers & CSP</li>
+            {% endif %}
+            {% if not (include_auth or include_csrf or include_rate_limiting or include_security_headers) %}
+            <li>ℹ️ Add security extensions in config</li>
+            {% endif %}
+        </ul>
+    </div>
+    
+    <div class="feature-card" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #007bff;">
+        <h3 style="color: #007bff; margin-top: 0;">🛠️ Development Tools</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li>✅ Auto-reload development server</li>
+            <li>✅ Configuration validation</li>
+            <li>✅ Comprehensive CLI tools</li>
+            {% if include_api %}
+            <li>✅ Interactive API documentation</li>
+            {% endif %}
+            <li>✅ Environment management</li>
+        </ul>
+    </div>
+</div>
+
+<div style="background: #e3f2fd; padding: 2rem; border-radius: 8px; margin: 2rem 0;">
+    <h2 style="color: #1976d2; margin-top: 0;">🚀 Quick Start Guide</h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+        <div>
+            <h4 style="color: #333; margin-bottom: 0.5rem;">1. Explore Configuration</h4>
+            <p style="margin-bottom: 0.5rem;">Check your configuration files:</p>
+            <code style="background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 3px;">config/app.yaml</code>
+        </div>
+        
+        <div>
+            <h4 style="color: #333; margin-bottom: 0.5rem;">2. Add Routes</h4>
+            <p style="margin-bottom: 0.5rem;">Customize your routes:</p>
+            {% if include_html %}
+            <code style="background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 3px;">routes/html.py</code>
+            {% endif %}
+            {% if include_api %}
+            <code style="background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 3px;">routes/api.py</code>
+            {% endif %}
+        </div>
+        
+        <div>
+            <h4 style="color: #333; margin-bottom: 0.5rem;">3. Customize Templates</h4>
+            <p style="margin-bottom: 0.5rem;">Edit your templates:</p>
+            <code style="background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 3px;">templates/</code>
+        </div>
+        
+        <div>
+            <h4 style="color: #333; margin-bottom: 0.5rem;">4. Use CLI Tools</h4>
+            <p style="margin-bottom: 0.5rem;">Manage your project:</p>
+            <code style="background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 3px;">beginnings --help</code>
+        </div>
+    </div>
+</div>
+
+<div style="text-align: center; margin: 2rem 0;">
+    <h3>Ready to build something amazing?</h3>
+    <div style="margin: 1rem 0;">
+        {% if include_auth %}
+        <a href="/dashboard" class="btn" style="margin: 0 0.5rem;">Dashboard</a>
+        {% endif %}
+        {% if include_api %}
+        <a href="/docs" class="btn btn-secondary" style="margin: 0 0.5rem;" target="_blank">API Docs</a>
+        {% endif %}
+        <a href="/about" class="btn btn-secondary" style="margin: 0 0.5rem;">Learn More</a>
+    </div>
+</div>
+
+<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 1rem; border-radius: 4px; margin: 2rem 0;">
+    <h4 style="color: #856404; margin-top: 0;">💡 Next Steps</h4>
+    <ol style="color: #856404; margin-bottom: 0;">
+        <li>Review the generated configuration in <code>config/</code></li>
+        <li>Customize routes in <code>routes/</code></li>
+        <li>Update templates in <code>templates/</code></li>
+        <li>Run <code>beginnings config validate</code> to check your setup</li>
+        <li>Start developing with <code>beginnings run</code></li>
+    </ol>
+</div>
+{% endblock %}

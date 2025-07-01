@@ -1,0 +1,203 @@
+# {{ extension_name | title }} Extension User Guide
+
+## Overview
+
+The {{ extension_name | title }} extension provides {{ extension_type }} functionality for Beginnings applications.
+
+## Installation
+
+1. Install the extension in your project:
+   ```bash
+   pip install {{ extension_name }}-extension
+   ```
+
+2. Add to your application configuration:
+   ```yaml
+   extensions:
+     - "{{ extension_name }}.extension:{{ extension_name | title }}Extension"
+   ```
+
+3. Configure the extension:
+   ```yaml
+   {{ extension_name }}:
+     enabled: true
+     # Add configuration options here
+   ```
+
+## Configuration
+
+### Global Configuration
+
+The extension can be configured globally in your application configuration:
+
+```yaml
+{{ extension_name }}:
+  enabled: true
+  # Extension-specific options
+```
+
+### Route-specific Configuration
+
+You can also configure the extension on a per-route basis:
+
+```yaml
+routes:
+  "/api/protected":
+    methods: ["GET", "POST"]
+    {{ extension_name }}:
+      enabled: true
+      # Route-specific options
+```
+
+## Usage Examples
+
+### Basic Usage
+
+```python
+from beginnings.core.app import App
+
+# Create application
+app = App()
+
+# Extension is automatically loaded from configuration
+```
+
+{% if extension_type == "middleware" %}
+### Middleware Features
+
+The {{ extension_name }} middleware provides:
+
+- Request preprocessing
+- Response postprocessing
+- Error handling
+- Route-specific configuration
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `true` | Enable/disable the middleware |
+| `option1` | str | `"default_value"` | Example option |
+| `option2` | bool | `false` | Example boolean option |
+
+{% elif extension_type == "auth_provider" %}
+### Authentication Features
+
+The {{ extension_name }} authentication provider supports:
+
+- Custom authentication logic
+- Role-based access control
+- Route protection
+- Token validation
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `true` | Enable/disable authentication |
+| `api_key` | str | *required* | API key for authentication service |
+| `secret_key` | str | *required* | Secret key for token validation |
+| `endpoint_url` | str | `"https://api.example.com"` | Authentication service URL |
+
+{% elif extension_type == "feature" %}
+### Feature Components
+
+The {{ extension_name }} feature includes:
+
+- API endpoints under `{{ "{{ api_prefix }}" }}`
+- Database models and migrations
+- Business logic and services
+- UI components (if enabled)
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `true` | Enable/disable the feature |
+| `api_prefix` | str | `"/{{ extension_name }}"` | API endpoint prefix |
+| `enable_api` | bool | `true` | Enable API endpoints |
+| `enable_ui` | bool | `false` | Enable UI components |
+
+{% elif extension_type == "integration" %}
+### Integration Features
+
+The {{ extension_name }} integration provides:
+
+- Client for external service API
+- Webhook handling
+- Event processing
+- Automatic retry logic
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `true` | Enable/disable integration |
+| `api_key` | str | *required* | API key for service |
+| `api_secret` | str | *required* | API secret for service |
+| `webhook_path` | str | `"/webhooks/{{ extension_name }}"` | Webhook endpoint path |
+| `enable_webhooks` | bool | `true` | Enable webhook processing |
+
+{% endif %}
+
+## Advanced Usage
+
+### Custom Configuration
+
+```python
+from {{ extension_name }}.extension import {{ extension_name | title }}Extension
+
+# Custom configuration
+custom_config = {
+    "enabled": True,
+    # Add custom options
+}
+
+# Initialize extension manually
+extension = {{ extension_name | title }}Extension(custom_config)
+```
+
+### Error Handling
+
+The extension provides built-in error handling for common scenarios:
+
+- Configuration validation errors
+- Runtime processing errors
+- Service connection errors
+
+### Debugging
+
+Enable debug logging to troubleshoot issues:
+
+```yaml
+logging:
+  level: DEBUG
+  loggers:
+    {{ extension_name }}:
+      level: DEBUG
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Extension not loading**
+   - Check extension is properly installed
+   - Verify configuration syntax
+   - Check application logs for errors
+
+2. **Configuration errors**
+   - Validate required configuration options
+   - Check data types and formats
+   - Review configuration documentation
+
+3. **Runtime errors**
+   - Enable debug logging
+   - Check service connectivity
+   - Verify permissions and credentials
+
+### Getting Help
+
+- Check the [configuration reference](configuration.md)
+- Review extension logs for error details
+- Open an issue on the project repository

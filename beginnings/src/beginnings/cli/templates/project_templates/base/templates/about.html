@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>About {{ project_name_title }}</h1>
+
+<div style="margin: 2rem 0;">
+    <p style="font-size: 1.1rem; line-height: 1.8;">
+        {{ project_name_title }} is built with the <strong>beginnings</strong> web framework, 
+        designed for security, simplicity, and developer productivity.
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0;">
+    <div>
+        <h3>🏗️ Architecture</h3>
+        <ul>
+            <li><strong>Configuration-First:</strong> Everything controlled through YAML</li>
+            <li><strong>Security by Default:</strong> Secure configurations out of the box</li>
+            <li><strong>Extension System:</strong> Modular functionality</li>
+            <li><strong>FastAPI Foundation:</strong> High performance and modern Python</li>
+        </ul>
+    </div>
+    
+    <div>
+        <h3>🔧 Current Configuration</h3>
+        <ul>
+            {% if include_html %}
+            <li>✅ HTML Routes: Enabled</li>
+            {% else %}
+            <li>❌ HTML Routes: Disabled</li>
+            {% endif %}
+            {% if include_api %}
+            <li>✅ API Routes: Enabled</li>
+            {% else %}
+            <li>❌ API Routes: Disabled</li>
+            {% endif %}
+            {% if include_auth %}
+            <li>✅ Authentication: Configured</li>
+            {% else %}
+            <li>❌ Authentication: Not configured</li>
+            {% endif %}
+            {% if include_csrf %}
+            <li>✅ CSRF Protection: Active</li>
+            {% else %}
+            <li>❌ CSRF Protection: Inactive</li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+
+{% if include_auth %}
+<div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin: 2rem 0;">
+    <h3>🔐 Authentication System</h3>
+    <p>This application includes multi-provider authentication:</p>
+    <ul>
+        <li><strong>Session Authentication:</strong> For HTML forms and traditional web apps</li>
+        {% if include_api %}
+        <li><strong>JWT Authentication:</strong> For API access and single-page applications</li>
+        {% endif %}
+        <li><strong>Secure Defaults:</strong> HttpOnly cookies, secure sessions, and strong tokens</li>
+    </ul>
+    <p>
+        <a href="/login" class="btn">Try Login</a>
+        <a href="/dashboard" class="btn btn-secondary">View Dashboard</a>
+    </p>
+</div>
+{% endif %}
+
+{% if include_api %}
+<div style="background: #e3f2fd; padding: 1.5rem; border-radius: 8px; margin: 2rem 0;">
+    <h3>🔌 API Endpoints</h3>
+    <p>This application exposes RESTful API endpoints:</p>
+    <ul>
+        <li><code>GET /api/health</code> - Health check</li>
+        <li><code>GET /api/info</code> - Application information</li>
+        {% if include_auth %}
+        <li><code>POST /api/v1/auth/login</code> - API authentication</li>
+        <li><code>GET /api/v1/users</code> - User management (protected)</li>
+        {% endif %}
+        <li><code>GET /api/v1/status</code> - Application status</li>
+    </ul>
+    <p>
+        <a href="/docs" class="btn" target="_blank">Explore API Documentation</a>
+    </p>
+</div>
+{% endif %}
+
+<div style="background: #f0f8ff; padding: 1.5rem; border-radius: 8px; margin: 2rem 0;">
+    <h3>📚 Learn More</h3>
+    <p>Resources to help you build with beginnings:</p>
+    <ul>
+        <li><a href="https://beginnings.8ly.xyz/docs" target="_blank">Framework Documentation</a></li>
+        <li><a href="https://beginnings.8ly.xyz/docs/configuration" target="_blank">Configuration Guide</a></li>
+        <li><a href="https://beginnings.8ly.xyz/docs/extensions" target="_blank">Extension Development</a></li>
+        <li><a href="https://beginnings.8ly.xyz/docs/security" target="_blank">Security Best Practices</a></li>
+    </ul>
+</div>
+
+<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 2rem 0;">
+    <h4 style="color: #856404; margin-top: 0;">🚀 Development Tips</h4>
+    <ul style="color: #856404; margin-bottom: 0;">
+        <li>Use <code>beginnings run</code> for development with auto-reload</li>
+        <li>Validate your config with <code>beginnings config validate</code></li>
+        <li>Check configuration differences with <code>beginnings config diff</code></li>
+        <li>Generate new extensions with <code>beginnings extension new</code></li>
+    </ul>
+</div>
+{% endblock %}

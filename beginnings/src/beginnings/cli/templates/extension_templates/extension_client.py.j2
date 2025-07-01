@@ -1,0 +1,290 @@
+"""{{ extension_name | title }} integration client."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
+
+import httpx
+
+
+logger = logging.getLogger(__name__)
+
+
+class {{ extension_name | title }}Client:
+    """Client for {{ extension_name }} service integration."""
+    
+    def __init__(
+        self,
+        api_key: str,
+        api_secret: str,
+        base_url: str = "https://api.example.com",
+        timeout: float = 30.0,
+        max_retries: int = 3,
+        retry_delay: float = 1.0
+    ):
+        """Initialize {{ extension_name }} client.
+        
+        Args:
+            api_key: API key for authentication
+            api_secret: API secret for authentication
+            base_url: Base URL for the service API
+            timeout: Request timeout in seconds
+            max_retries: Maximum number of retry attempts
+            retry_delay: Delay between retries in seconds
+        """
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        
+        # Initialize HTTP client
+        self._client = httpx.AsyncClient(
+            timeout=timeout,
+            headers={
+                "User-Agent": "{{ extension_name }}-client/1.0.0",
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+        )
+        
+        # Authentication token cache
+        self._auth_token: Optional[str] = None
+        self._auth_expires_at: Optional[datetime] = None
+    
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.close()
+    
+    async def close(self):
+        """Close the HTTP client."""
+        if self._client:
+            await self._client.aclose()
+    
+    async def authenticate(self) -> str:
+        """Authenticate with the service and get access token.
+        
+        Returns:
+            Access token
+            
+        Raises:
+            {{ extension_name | title }}Error: If authentication fails
+        """
+        # Check if we have a valid cached token
+        if (self._auth_token and self._auth_expires_at and 
+            datetime.utcnow() < self._auth_expires_at - timedelta(minutes=5)):
+            return self._auth_token
+        
+        try:
+            response = await self._client.post(
+                f"{self.base_url}/auth/token",
+                json={
+                    "api_key": self.api_key,
+                    "api_secret": self.api_secret
+                }
+            )
+            response.raise_for_status()
+            
+            auth_data = response.json()
+            self._auth_token = auth_data["access_token"]
+            
+            # Calculate expiration time
+            expires_in = auth_data.get("expires_in", 3600)  # Default 1 hour
+            self._auth_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+            
+            logger.info("Successfully authenticated with {{ extension_name }} service")
+            return self._auth_token
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Authentication failed: {e.response.status_code} {e.response.text}")
+            raise {{ extension_name | title }}Error(f"Authentication failed: {e.response.status_code}")
+        except Exception as e:
+            logger.error(f"Authentication error: {e}")
+            raise {{ extension_name | title }}Error(f"Authentication error: {e}")
+    
+    async def _make_request(
+        self,
+        method: str,
+        endpoint: str,
+        data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Make authenticated request to the API.
+        
+        Args:
+            method: HTTP method
+            endpoint: API endpoint (without base URL)
+            data: Request data for POST/PUT requests
+            params: Query parameters
+            
+        Returns:
+            Response data
+            
+        Raises:
+            {{ extension_name | title }}Error: If request fails
+        """
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        
+        # Get authentication token
+        token = await self.authenticate()
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Retry logic
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self._client.request(
+                    method=method,
+                    url=url,
+                    json=data,
+                    params=params,
+                    headers=headers
+                )
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 401:
+                    # Token might be expired, clear cache and retry once
+                    self._auth_token = None
+                    self._auth_expires_at = None
+                    if attempt == 0:
+                        logger.warning("Token expired, retrying with new token")
+                        continue
+                
+                logger.error(f"API request failed: {e.response.status_code} {e.response.text}")
+                raise {{ extension_name | title }}Error(f"API request failed: {e.response.status_code}")
+                
+            except Exception as e:
+                if attempt < self.max_retries:
+                    logger.warning(f"Request attempt {attempt + 1} failed: {e}, retrying...")
+                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+                    continue
+                
+                logger.error(f"Request failed after {self.max_retries} retries: {e}")
+                raise {{ extension_name | title }}Error(f"Request failed: {e}")
+    
+    async def get_resource(self, resource_id: str) -> Dict[str, Any]:
+        """Get a specific resource.
+        
+        Args:
+            resource_id: ID of the resource to retrieve
+            
+        Returns:
+            Resource data
+        """
+        return await self._make_request("GET", f"/resources/{resource_id}")
+    
+    async def list_resources(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """List resources.
+        
+        Args:
+            limit: Maximum number of resources to return
+            offset: Number of resources to skip
+            filters: Optional filters to apply
+            
+        Returns:
+            Response with resources list and pagination info
+        """
+        params = {"limit": limit, "offset": offset}
+        if filters:
+            params.update(filters)
+        
+        return await self._make_request("GET", "/resources", params=params)
+    
+    async def create_resource(self, resource_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new resource.
+        
+        Args:
+            resource_data: Data for the new resource
+            
+        Returns:
+            Created resource data
+        """
+        return await self._make_request("POST", "/resources", data=resource_data)
+    
+    async def update_resource(
+        self,
+        resource_id: str,
+        resource_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a resource.
+        
+        Args:
+            resource_id: ID of the resource to update
+            resource_data: Updated resource data
+            
+        Returns:
+            Updated resource data
+        """
+        return await self._make_request("PUT", f"/resources/{resource_id}", data=resource_data)
+    
+    async def delete_resource(self, resource_id: str) -> bool:
+        """Delete a resource.
+        
+        Args:
+            resource_id: ID of the resource to delete
+            
+        Returns:
+            True if deletion was successful
+        """
+        await self._make_request("DELETE", f"/resources/{resource_id}")
+        return True
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Check service health.
+        
+        Returns:
+            Health status information
+        """
+        return await self._make_request("GET", "/health")
+
+
+class {{ extension_name | title }}Error(Exception):
+    """Custom exception for {{ extension_name }} client errors."""
+    
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+    
+    def __str__(self):
+        if self.status_code:
+            return f"{{ extension_name | title }}Error({self.status_code}): {self.message}"
+        return f"{{ extension_name | title }}Error: {self.message}"
+
+
+# Factory function for creating client instances
+def create_client(
+    api_key: str,
+    api_secret: str,
+    **kwargs
+) -> {{ extension_name | title }}Client:
+    """Create a {{ extension_name }} client instance.
+    
+    Args:
+        api_key: API key for authentication
+        api_secret: API secret for authentication
+        **kwargs: Additional client configuration
+        
+    Returns:
+        Configured client instance
+    """
+    return {{ extension_name | title }}Client(
+        api_key=api_key,
+        api_secret=api_secret,
+        **kwargs
+    )

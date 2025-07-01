@@ -1,0 +1,225 @@
+"""{{ extension_name | title }} feature extension."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, List, Optional
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from beginnings.extensions.base import BaseExtension
+
+
+class {{ extension_name | title }}Extension(BaseExtension):
+    """{{ extension_name | title }} feature extension.
+    
+    This extension provides {{ extension_name }} functionality with routes,
+    models, and complete feature integration.
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        """Initialize {{ extension_name }} extension.
+        
+        Args:
+            config: Extension configuration
+        """
+        super().__init__(config)
+        self.enabled = config.get("enabled", True)
+        
+        # Feature configuration
+        self.api_prefix = config.get("api_prefix", "/{{ extension_name }}")
+        self.enable_api = config.get("enable_api", True)
+        self.enable_ui = config.get("enable_ui", False)
+        
+        # Database configuration
+        self.db_table_prefix = config.get("db_table_prefix", "{{ extension_name }}_")
+        self.auto_migrate = config.get("auto_migrate", True)
+    
+    def validate_config(self) -> List[str]:
+        """Validate extension configuration.
+        
+        Returns:
+            List of validation error messages
+        """
+        errors = []
+        
+        if not isinstance(self.enabled, bool):
+            errors.append("enabled must be a boolean")
+        
+        if not isinstance(self.api_prefix, str):
+            errors.append("api_prefix must be a string")
+        
+        if not self.api_prefix.startswith("/"):
+            errors.append("api_prefix must start with '/'")
+        
+        if not isinstance(self.enable_api, bool):
+            errors.append("enable_api must be a boolean")
+        
+        if not isinstance(self.enable_ui, bool):
+            errors.append("enable_ui must be a boolean")
+        
+        return errors
+    
+    def should_apply_to_route(
+        self, 
+        path: str, 
+        methods: List[str], 
+        route_config: Dict[str, Any]
+    ) -> bool:
+        """Determine if this extension should apply to the given route.
+        
+        Args:
+            path: Route path
+            methods: HTTP methods for the route
+            route_config: Route-specific configuration
+            
+        Returns:
+            True if extension should apply to this route
+        """
+        if not self.enabled:
+            return False
+        
+        # Apply to routes under our API prefix
+        if path.startswith(self.api_prefix):
+            return True
+        
+        # Check route-specific configuration
+        route_config_enabled = route_config.get("{{ extension_name }}", {}).get("enabled", False)
+        return route_config_enabled
+    
+    def get_middleware_factory(self) -> Callable[[Dict[str, Any]], BaseHTTPMiddleware]:
+        """Get middleware factory for this extension.
+        
+        Returns:
+            Factory function that creates middleware instances
+        """
+        def create_middleware(route_config: Dict[str, Any]) -> BaseHTTPMiddleware:
+            return {{ extension_name | title }}Middleware(
+                extension_config=self.config,
+                route_config=route_config
+            )
+        
+        return create_middleware
+    
+    def get_startup_handler(self) -> Optional[Callable]:
+        """Get startup handler for feature initialization.
+        
+        Returns:
+            Async startup handler function
+        """
+        async def startup():
+            """Initialize feature on application startup."""
+            # Initialize database tables if auto_migrate is enabled
+            if self.auto_migrate:
+                await self._setup_database()
+            
+            # Initialize any required services
+            await self._initialize_services()
+        
+        return startup
+    
+    def get_shutdown_handler(self) -> Optional[Callable]:
+        """Get shutdown handler for feature cleanup.
+        
+        Returns:
+            Async shutdown handler function
+        """
+        async def shutdown():
+            """Clean up feature on application shutdown."""
+            # Clean up any resources
+            await self._cleanup_services()
+        
+        return shutdown
+    
+    async def _setup_database(self):
+        """Set up database tables and migrations."""
+        # Add your database setup logic here
+        # This could involve:
+        # - Creating tables
+        # - Running migrations
+        # - Setting up indexes
+        pass
+    
+    async def _initialize_services(self):
+        """Initialize feature services."""
+        # Add your service initialization logic here
+        # This could involve:
+        # - Setting up background tasks
+        # - Initializing caches
+        # - Connecting to external services
+        pass
+    
+    async def _cleanup_services(self):
+        """Clean up feature services."""
+        # Add your cleanup logic here
+        # This could involve:
+        # - Stopping background tasks
+        # - Closing connections
+        # - Saving state
+        pass
+
+
+class {{ extension_name | title }}Middleware(BaseHTTPMiddleware):
+    """{{ extension_name | title }} feature middleware."""
+    
+    def __init__(
+        self, 
+        app,
+        extension_config: Dict[str, Any],
+        route_config: Dict[str, Any]
+    ):
+        """Initialize middleware.
+        
+        Args:
+            app: ASGI application
+            extension_config: Extension-level configuration
+            route_config: Route-specific configuration
+        """
+        super().__init__(app)
+        self.extension_config = extension_config
+        self.route_config = route_config
+        
+        # Extract configuration
+        self.api_prefix = extension_config.get("api_prefix", "/{{ extension_name }}")
+        self.enable_logging = extension_config.get("enable_logging", True)
+        self.enable_metrics = extension_config.get("enable_metrics", True)
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Process request for {{ extension_name }} feature.
+        
+        Args:
+            request: Incoming request
+            call_next: Next middleware/endpoint in chain
+            
+        Returns:
+            Response object
+        """
+        # Add feature-specific request processing
+        if self.enable_logging:
+            await self._log_request(request)
+        
+        if self.enable_metrics:
+            await self._record_metrics(request)
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Add feature-specific response processing
+        if self.enable_metrics:
+            await self._record_response_metrics(request, response)
+        
+        return response
+    
+    async def _log_request(self, request: Request):
+        """Log feature request."""
+        # Add your logging logic here
+        pass
+    
+    async def _record_metrics(self, request: Request):
+        """Record request metrics."""
+        # Add your metrics logic here
+        pass
+    
+    async def _record_response_metrics(self, request: Request, response: Response):
+        """Record response metrics."""
+        # Add your response metrics logic here
+        pass

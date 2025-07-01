@@ -1,0 +1,91 @@
+"""Base authentication provider for {{ extension_name }} extension."""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+from fastapi import Request
+
+from beginnings.extensions.auth.providers.base import BaseAuthProvider
+
+
+class Base{{ extension_name | title }}Provider(BaseAuthProvider):
+    """Base authentication provider for {{ extension_name }}."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        """Initialize provider.
+        
+        Args:
+            config: Provider configuration
+        """
+        super().__init__(config)
+        
+        # Provider-specific configuration
+        self.api_endpoint = config.get("api_endpoint", "https://api.example.com")
+        self.api_key = config.get("api_key")
+        self.timeout = config.get("timeout", 30)
+    
+    def validate_config(self) -> List[str]:
+        """Validate provider configuration.
+        
+        Returns:
+            List of validation error messages
+        """
+        errors = []
+        
+        if not self.api_key:
+            errors.append("api_key is required")
+        
+        if not isinstance(self.api_endpoint, str):
+            errors.append("api_endpoint must be a string")
+        
+        if not isinstance(self.timeout, (int, float)) or self.timeout <= 0:
+            errors.append("timeout must be a positive number")
+        
+        return errors
+    
+    async def authenticate(self, request: Request) -> Optional[Dict[str, Any]]:
+        """Authenticate a request.
+        
+        Args:
+            request: Incoming request
+            
+        Returns:
+            User information if authenticated, None otherwise
+        """
+        # Extract authentication credentials from request
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return None
+        
+        # Process authentication
+        user_info = await self._process_authentication(auth_header)
+        return user_info
+    
+    async def _process_authentication(self, auth_header: str) -> Optional[Dict[str, Any]]:
+        """Process authentication with external service.
+        
+        Args:
+            auth_header: Authorization header value
+            
+        Returns:
+            User information if valid, None otherwise
+        """
+        # Add your authentication logic here
+        # This could involve:
+        # - Making API calls to validate tokens
+        # - Checking local token cache
+        # - Validating JWT tokens
+        # - Looking up user information
+        
+        # Placeholder implementation
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            if token == "valid_token":
+                return {
+                    "user_id": "test_user",
+                    "username": "testuser",
+                    "roles": ["user"],
+                    "permissions": ["read"]
+                }
+        
+        return None

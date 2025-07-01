@@ -1,0 +1,186 @@
+"""Tests for test_extension middleware extension."""
+
+import pytest
+from typing import Dict, Any
+from unittest.mock import AsyncMock, MagicMock
+
+from test_extension.extension import TestExtensionExtension, TestExtensionMiddleware
+
+
+class TestTestExtensionExtension:
+    """Test test_extension extension."""
+    
+    def test_init_with_default_config(self):
+        """Test extension initialization with default configuration."""
+        config = {"enabled": True}
+        extension = TestExtensionExtension(config)
+        
+        assert extension.enabled is True
+        assert extension.config == config
+    
+    def test_init_with_custom_config(self):
+        """Test extension initialization with custom configuration."""
+        config = {
+            "enabled": True,
+            "option1": "custom_value",
+            "option2": True
+        }
+        extension = TestExtensionExtension(config)
+        
+        assert extension.enabled is True
+        assert extension.option1 == "custom_value"
+        assert extension.option2 is True
+    
+    def test_validate_config_valid(self, extension):
+        """Test configuration validation with valid config."""
+        errors = extension.validate_config()
+        assert errors == []
+    
+    def test_validate_config_invalid_enabled(self):
+        """Test configuration validation with invalid enabled value."""
+        config = {"enabled": "not_a_boolean"}
+        extension = TestExtensionExtension(config)
+        
+        errors = extension.validate_config()
+        assert "enabled must be a boolean" in errors
+    
+    def test_should_apply_to_route_enabled(self, extension):
+        """Test route application when extension is enabled."""
+        result = extension.should_apply_to_route("/api/test", ["GET"], {})
+        assert result is True
+    
+    def test_should_apply_to_route_disabled(self):
+        """Test route application when extension is disabled."""
+        config = {"enabled": False}
+        extension = TestExtensionExtension(config)
+        
+        result = extension.should_apply_to_route("/api/test", ["GET"], {})
+        assert result is False
+    
+    def test_should_apply_to_route_health_check(self, extension):
+        """Test route application skips health check endpoints."""
+        result = extension.should_apply_to_route("/health", ["GET"], {})
+        assert result is False
+    
+    def test_should_apply_to_route_disabled_in_config(self, extension):
+        """Test route application with route-specific disable."""
+        route_config = {"test_extension": {"enabled": False}}
+        result = extension.should_apply_to_route("/api/test", ["GET"], route_config)
+        assert result is False
+    
+    def test_get_middleware_factory(self, extension):
+        """Test middleware factory creation."""
+        factory = extension.get_middleware_factory()
+        assert callable(factory)
+        
+        middleware = factory({})
+        assert isinstance(middleware, TestExtensionMiddleware)
+
+
+class TestTestExtensionMiddleware:
+    """Test test_extension middleware."""
+    
+    @pytest.fixture
+    def middleware(self, extension_config):
+        """Create middleware instance for testing."""
+        app = MagicMock()
+        return TestExtensionMiddleware(
+            app=app,
+            extension_config=extension_config,
+            route_config={}
+        )
+    
+    def test_init(self, middleware, extension_config):
+        """Test middleware initialization."""
+        assert middleware.extension_config == extension_config
+        assert middleware.route_config == {}
+    
+    def test_init_with_route_config(self, extension_config):
+        """Test middleware initialization with route config."""
+        app = MagicMock()
+        route_config = {"test_extension": {"option1": "route_value"}}
+        
+        middleware = TestExtensionMiddleware(
+            app=app,
+            extension_config=extension_config,
+            route_config=route_config
+        )
+        
+        assert middleware.route_option1 == "route_value"
+    
+    @pytest.mark.asyncio
+    async def test_dispatch_success(self, middleware, mock_request):
+        """Test successful request dispatch."""
+        mock_response = MagicMock()
+        call_next = AsyncMock(return_value=mock_response)
+        
+        result = await middleware.dispatch(mock_request, call_next)
+        
+        assert result == mock_response
+        call_next.assert_called_once_with(mock_request)
+    
+    @pytest.mark.asyncio
+    async def test_dispatch_with_exception(self, middleware, mock_request):
+        """Test request dispatch with exception."""
+        exception = ValueError("Test error")
+        call_next = AsyncMock(side_effect=exception)
+        
+        with pytest.raises(ValueError, match="Test error"):
+            await middleware.dispatch(mock_request, call_next)
+    
+    @pytest.mark.asyncio
+    async def test_before_request(self, middleware, mock_request):
+        """Test before request processing."""
+        # This should not raise any exceptions
+        await middleware._before_request(mock_request)
+    
+    @pytest.mark.asyncio
+    async def test_after_request(self, middleware, mock_request, mock_response):
+        """Test after request processing."""
+        # This should not raise any exceptions
+        await middleware._after_request(mock_request, mock_response)
+    
+    @pytest.mark.asyncio
+    async def test_on_error(self, middleware, mock_request):
+        """Test error handling."""
+        exception = ValueError("Test error")
+        
+        # This should not raise any exceptions
+        await middleware._on_error(mock_request, exception)
+
+
+class TestTestExtensionIntegration:
+    """Integration tests for test_extension extension."""
+    
+    def test_extension_with_fastapi_app(self, app, extension_config):
+        """Test extension integration with FastAPI app."""
+        extension = TestExtensionExtension(extension_config)
+        
+        # Test that we can create middleware
+        factory = extension.get_middleware_factory()
+        middleware = factory({})
+        
+        assert isinstance(middleware, TestExtensionMiddleware)
+    
+    @pytest.mark.asyncio
+    async def test_middleware_in_request_chain(self, app, client, extension_config):
+        """Test middleware in actual request chain."""
+        extension = TestExtensionExtension(extension_config)
+        
+        # Add a test endpoint
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "success"}
+        
+        # Add middleware to app
+        factory = extension.get_middleware_factory()
+        middleware_class = factory({})
+        app.add_middleware(type(middleware_class), 
+                          extension_config=extension_config, 
+                          route_config={})
+        
+        # Make request
+        response = client.get("/test")
+        
+        assert response.status_code == 200
+        assert response.json() == {"message": "success"}

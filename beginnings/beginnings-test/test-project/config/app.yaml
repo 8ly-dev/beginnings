@@ -1,0 +1,23 @@
+app:
+  name: "test-project"
+  debug: false
+  host: "127.0.0.1"
+  port: 8000
+
+
+routers:
+
+  html:
+    prefix: ""
+    default_response_class: "HTMLResponse"
+
+
+
+
+
+
+
+
+
+
+

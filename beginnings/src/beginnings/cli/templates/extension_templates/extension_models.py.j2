@@ -1,0 +1,194 @@
+"""{{ extension_name | title }} feature models."""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+from datetime import datetime
+import uuid
+
+
+class {{ extension_name | title }}Model:
+    """Model for {{ extension_name }} feature data."""
+    
+    # In-memory storage for demo purposes
+    # In a real implementation, you would use a database
+    _items: Dict[str, Dict[str, Any]] = {}
+    
+    @classmethod
+    async def list(
+        cls, 
+        limit: int = 10, 
+        offset: int = 0,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """List {{ extension_name }} items.
+        
+        Args:
+            limit: Maximum number of items to return
+            offset: Number of items to skip
+            filters: Optional filters to apply
+            
+        Returns:
+            List of item dictionaries
+        """
+        items = list(cls._items.values())
+        
+        # Apply filters if provided
+        if filters:
+            items = cls._apply_filters(items, filters)
+        
+        # Apply pagination
+        return items[offset:offset + limit]
+    
+    @classmethod
+    async def get(cls, item_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific {{ extension_name }} item.
+        
+        Args:
+            item_id: ID of the item to retrieve
+            
+        Returns:
+            Item dictionary or None if not found
+        """
+        return cls._items.get(item_id)
+    
+    @classmethod
+    async def create(cls, item_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new {{ extension_name }} item.
+        
+        Args:
+            item_data: Data for the new item
+            
+        Returns:
+            Created item dictionary with ID
+        """
+        item_id = str(uuid.uuid4())
+        
+        item = {
+            "id": item_id,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            **item_data
+        }
+        
+        cls._items[item_id] = item
+        return item
+    
+    @classmethod
+    async def update(cls, item_id: str, item_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update a {{ extension_name }} item.
+        
+        Args:
+            item_id: ID of the item to update
+            item_data: Updated item data
+            
+        Returns:
+            Updated item dictionary or None if not found
+        """
+        if item_id not in cls._items:
+            return None
+        
+        # Update the item
+        cls._items[item_id].update({
+            **item_data,
+            "updated_at": datetime.utcnow().isoformat()
+        })
+        
+        return cls._items[item_id]
+    
+    @classmethod
+    async def delete(cls, item_id: str) -> bool:
+        """Delete a {{ extension_name }} item.
+        
+        Args:
+            item_id: ID of the item to delete
+            
+        Returns:
+            True if item was deleted, False if not found
+        """
+        if item_id in cls._items:
+            del cls._items[item_id]
+            return True
+        return False
+    
+    @classmethod
+    async def count(cls, filters: Optional[Dict[str, Any]] = None) -> int:
+        """Count {{ extension_name }} items.
+        
+        Args:
+            filters: Optional filters to apply
+            
+        Returns:
+            Number of items matching filters
+        """
+        items = list(cls._items.values())
+        
+        if filters:
+            items = cls._apply_filters(items, filters)
+        
+        return len(items)
+    
+    @classmethod
+    def _apply_filters(cls, items: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Apply filters to items list.
+        
+        Args:
+            items: List of items to filter
+            filters: Filters to apply
+            
+        Returns:
+            Filtered list of items
+        """
+        filtered_items = items
+        
+        # Add your filtering logic here
+        # Example filters:
+        if "name" in filters:
+            name_filter = filters["name"].lower()
+            filtered_items = [
+                item for item in filtered_items 
+                if name_filter in item.get("name", "").lower()
+            ]
+        
+        if "status" in filters:
+            status_filter = filters["status"]
+            filtered_items = [
+                item for item in filtered_items 
+                if item.get("status") == status_filter
+            ]
+        
+        return filtered_items
+    
+    @classmethod
+    async def clear_all(cls):
+        """Clear all items (for testing purposes)."""
+        cls._items.clear()
+
+
+# Example data model schema
+class {{ extension_name | title }}Schema:
+    """Schema definition for {{ extension_name }} items."""
+    
+    @staticmethod
+    def create_schema() -> Dict[str, Any]:
+        """Get the schema for creating items."""
+        return {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "minLength": 1, "maxLength": 255},
+                "description": {"type": "string", "maxLength": 1000},
+                "status": {"type": "string", "enum": ["active", "inactive", "pending"]},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "metadata": {"type": "object"}
+            },
+            "required": ["name"],
+            "additionalProperties": False
+        }
+    
+    @staticmethod
+    def update_schema() -> Dict[str, Any]:
+        """Get the schema for updating items."""
+        schema = {{ extension_name | title }}Schema.create_schema()
+        # Remove required fields for updates
+        schema["required"] = []
+        return schema

@@ -1,0 +1,49 @@
+# Development environment configuration
+# Includes the base configuration and adds development-specific overrides
+
+include:
+  - "app.yaml"
+
+app:
+  debug: true
+  host: "127.0.0.1"
+
+{% if include_auth %}
+# Development-friendly auth settings
+auth:
+  providers:
+    session:
+      cookie_secure: false  # Allow HTTP in development
+      session_timeout: 7200  # 2 hours for development
+    {% if include_api %}
+    jwt:
+      token_expire_minutes: 1440  # 24 hours for development
+    {% endif %}
+{% endif %}
+
+{% if include_rate_limiting %}
+# Relaxed rate limits for development
+rate_limiting:
+  global:
+    requests: 10000  # Higher limit for development
+    window_seconds: 3600
+  
+  routes:
+    "/login":
+      requests: 50  # More attempts allowed in development
+      window_seconds: 300
+{% endif %}
+
+{% if include_security_headers %}
+# Development security settings
+security:
+  headers:
+    strict_transport_security:
+      max_age: 0  # Disable HSTS in development
+  
+  csp:
+    enabled: true
+    directives:
+      script_src: ["'self'", "'unsafe-inline'", "'unsafe-eval'"]  # Allow inline scripts for development
+      style_src: ["'self'", "'unsafe-inline'"]  # Allow inline styles for development
+{% endif %}

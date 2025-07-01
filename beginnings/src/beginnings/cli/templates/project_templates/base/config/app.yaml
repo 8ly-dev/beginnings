@@ -1,0 +1,116 @@
+app:
+  name: "{{ project_name }}"
+  debug: false
+  host: "127.0.0.1"
+  port: 8000
+
+{% if routers %}
+routers:
+{% for router_name, router_config in routers.items() %}
+  {{ router_name }}:
+    prefix: "{{ router_config.prefix }}"
+    default_response_class: "{{ router_config.default_response_class }}"
+{% endfor %}
+{% endif %}
+
+{% if has_extensions %}
+extensions:
+{% for extension in extensions %}
+  - "{{ extension }}"
+{% endfor %}
+{% endif %}
+
+{% if include_auth %}
+# Authentication configuration
+auth:
+  providers:
+    session:
+      secret_key: "${SESSION_SECRET:-your-secret-session-key-change-in-production}"
+      session_timeout: 3600
+      cookie_secure: true
+      cookie_httponly: true
+      cookie_samesite: "strict"
+    {% if include_api %}
+    jwt:
+      secret_key: "${JWT_SECRET:-your-secret-jwt-key-must-be-32-chars-minimum}"
+      algorithm: "HS256"
+      token_expire_minutes: 60
+    {% endif %}
+  
+  security:
+    password_min_length: 8
+    account_lockout_attempts: 5
+    account_lockout_duration: 300
+{% endif %}
+
+{% if include_csrf %}
+# CSRF protection configuration
+csrf:
+  enabled: true
+  token_length: 32
+  token_expire_minutes: 60
+  double_submit_cookie: true
+  secure_cookie: true
+{% endif %}
+
+{% if include_rate_limiting %}
+# Rate limiting configuration
+rate_limiting:
+  global:
+    enabled: true
+    requests: 1000
+    window_seconds: 3600
+    algorithm: "sliding_window"
+  
+  routes:
+    "/login":
+      requests: 5
+      window_seconds: 300
+      algorithm: "fixed_window"
+    {% if include_api %}
+    "/api/*":
+      requests: 100
+      window_seconds: 60
+      algorithm: "token_bucket"
+      burst_size: 10
+    {% endif %}
+{% endif %}
+
+{% if include_security_headers %}
+# Security headers configuration
+security:
+  headers:
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+    x_xss_protection: "1; mode=block"
+    referrer_policy: "strict-origin-when-cross-origin"
+    
+    strict_transport_security:
+      max_age: 31536000
+      include_subdomains: true
+      preload: false
+  
+  csp:
+    enabled: true
+    nonce:
+      enabled: true
+      script_nonce: true
+      style_nonce: true
+    
+    directives:
+      default_src: ["'self'"]
+      script_src: ["'self'", "'nonce-{nonce}'"]
+      style_src: ["'self'", "'nonce-{nonce}'"]
+      img_src: ["'self'", "data:", "https:"]
+      font_src: ["'self'", "https:"]
+      connect_src: ["'self'"]
+      
+  cors:
+    enabled: {% if include_api %}true{% else %}false{% endif %}
+    {% if include_api %}
+    allow_origins: ["http://localhost:3000"]  # Add your frontend origins
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers: ["*"]
+    allow_credentials: true
+    {% endif %}
+{% endif %}

@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "Beginnings Debug Dashboard" }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 300;
+        }
+        
+        .header .status {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-change {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: #f8fafc;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .panel-content {
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .request-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .request-item:last-child {
+            border-bottom: none;
+        }
+        
+        .request-info {
+            flex: 1;
+        }
+        
+        .request-path {
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .request-details {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+        
+        .status-2xx {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-3xx {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-4xx {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-5xx {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
+        
+        .log-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+        }
+        
+        .log-item:last-child {
+            border-bottom: none;
+        }
+        
+        .log-level {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .log-debug {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        
+        .log-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .log-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .log-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .log-critical {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 0.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #3b82f6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>{{ title or "Beginnings Debug Dashboard" }}</h1>
+        <div class="status">
+            Status: <span id="status">Connecting...</span> | 
+            Last Updated: <span id="last-updated">Never</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Stats Overview -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Requests</h3>
+                <div class="stat-value" id="total-requests">-</div>
+                <div class="stat-change">Across all endpoints</div>
+            </div>
+            <div class="stat-card">
+                <h3>Requests/Min</h3>
+                <div class="stat-value" id="requests-per-min">-</div>
+                <div class="stat-change">Current rate</div>
+            </div>
+            <div class="stat-card">
+                <h3>Error Rate</h3>
+                <div class="stat-value" id="error-rate">-</div>
+                <div class="stat-change">Percentage of failed requests</div>
+            </div>
+            <div class="stat-card">
+                <h3>Avg Response Time</h3>
+                <div class="stat-value" id="avg-response-time">-</div>
+                <div class="stat-change">Milliseconds</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-grid">
+            <!-- Requests Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Recent Requests</h2>
+                    <div class="controls">
+                        <button class="btn btn-secondary" onclick="refreshRequests()">Refresh</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="tabs">
+                        <div class="tab active" onclick="showTab('recent-requests')">Recent</div>
+                        <div class="tab" onclick="showTab('slow-requests')">Slow</div>
+                        <div class="tab" onclick="showTab('error-requests')">Errors</div>
+                    </div>
+                    
+                    <div id="recent-requests" class="tab-content active">
+                        <div id="requests-list" class="loading">Loading requests...</div>
+                    </div>
+                    
+                    <div id="slow-requests" class="tab-content">
+                        <div id="slow-requests-list" class="loading">Loading slow requests...</div>
+                    </div>
+                    
+                    <div id="error-requests" class="tab-content">
+                        <div id="error-requests-list" class="loading">Loading error requests...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Application Logs</h2>
+                    <div class="controls">
+                        <select id="log-level-filter">
+                            <option value="">All Levels</option>
+                            <option value="DEBUG">Debug</option>
+                            <option value="INFO">Info</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="refreshLogs()">Refresh</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="logs-list" class="loading">Loading logs...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Panel (if profiler enabled) -->
+        {% if config.debug.enable_profiler %}
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Performance Profiles</h2>
+                <div class="controls">
+                    <button class="btn btn-secondary" onclick="refreshProfiles()">Refresh</button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div id="profiles-list" class="loading">Loading profiles...</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Control Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Controls</h2>
+            </div>
+            <div class="panel-content">
+                <div class="controls">
+                    <button class="btn" onclick="exportData()">Export Data</button>
+                    <button class="btn btn-danger" onclick="clearData()">Clear All Data</button>
+                    <button class="btn btn-secondary" onclick="refreshAll()">Refresh All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Beginnings Debug Dashboard - Real-time application monitoring and debugging</p>
+    </footer>
+
+    <script>
+        // Global state
+        let updateInterval;
+        let isConnected = false;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInitialData();
+            startAutoRefresh();
+            
+            // Log level filter
+            document.getElementById('log-level-filter').addEventListener('change', refreshLogs);
+        });
+
+        // Tab switching
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Deactivate all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Activate clicked tab
+            event.target.classList.add('active');
+            
+            // Load data for the tab
+            if (tabId === 'slow-requests') {
+                loadSlowRequests();
+            } else if (tabId === 'error-requests') {
+                loadErrorRequests();
+            }
+        }
+
+        // Data loading functions
+        async function loadInitialData() {
+            await Promise.all([
+                loadMetrics(),
+                loadRequests(),
+                loadLogs()
+            ]);
+            
+            {% if config.debug.enable_profiler %}
+            await loadProfiles();
+            {% endif %}
+            
+            updateStatus('Connected');
+        }
+
+        async function loadMetrics() {
+            try {
+                const response = await fetch('/api/metrics');
+                const data = await response.json();
+                
+                const summary = data.summary || {};
+                document.getElementById('total-requests').textContent = summary.total_requests || 0;
+                document.getElementById('requests-per-min').textContent = (summary.requests_per_minute || 0).toFixed(1);
+                document.getElementById('error-rate').textContent = (summary.error_rate_percent || 0).toFixed(1) + '%';
+                document.getElementById('avg-response-time').textContent = (summary.avg_response_time_ms || 0).toFixed(0) + 'ms';
+                
+            } catch (error) {
+                console.error('Failed to load metrics:', error);
+            }
+        }
+
+        async function loadRequests() {
+            try {
+                const response = await fetch('/api/requests?limit=20');
+                const data = await response.json();
+                
+                const container = document.getElementById('requests-list');
+                container.innerHTML = '';
+                
+                if (data.requests && data.requests.length > 0) {
+                    data.requests.forEach(request => {
+                        const item = createRequestItem(request);
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<div class="loading">No requests yet</div>';
+                }
+                
+            } catch (error) {
+                console.error('Failed to load requests:', error);
+                document.getElementById('requests-list').innerHTML = '<div class="error">Failed to load requests</div>';
+            }
+        }
+
+        async function loadSlowRequests() {
+            try {
+                const response = await fetch('/api/requests/slow?min_duration=1000&limit=15');
+                const data = await response.json();
+                
+                const container = document.getElementById('slow-requests-list');
+                container.innerHTML = '';
+                
+                if (data.slow_requests && data.slow_requests.length > 0) {
+                    data.slow_requests.forEach(request => {
+                        const item = createRequestItem(request);
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<div class="loading">No slow requests</div>';
+                }
+                
+            } catch (error) {
+                console.error('Failed to load slow requests:', error);
+            }
+        }
+
+        async function loadErrorRequests() {
+            try {
+                const response = await fetch('/api/requests/errors?limit=15');
+                const data = await response.json();
+                
+                const container = document.getElementById('error-requests-list');
+                container.innerHTML = '';
+                
+                if (data.error_requests && data.error_requests.length > 0) {
+                    data.error_requests.forEach(request => {
+                        const item = createRequestItem(request);
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<div class="loading">No error requests</div>';
+                }
+                
+            } catch (error) {
+                console.error('Failed to load error requests:', error);
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const levelFilter = document.getElementById('log-level-filter').value;
+                const url = `/api/logs?limit=30${levelFilter ? '&level=' + levelFilter : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                const container = document.getElementById('logs-list');
+                container.innerHTML = '';
+                
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        const item = createLogItem(log);
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<div class="loading">No logs yet</div>';
+                }
+                
+            } catch (error) {
+                console.error('Failed to load logs:', error);
+                document.getElementById('logs-list').innerHTML = '<div class="error">Failed to load logs</div>';
+            }
+        }
+
+        {% if config.debug.enable_profiler %}
+        async function loadProfiles() {
+            try {
+                const response = await fetch('/api/profiler?limit=20');
+                const data = await response.json();
+                
+                const container = document.getElementById('profiles-list');
+                container.innerHTML = '';
+                
+                if (data.profiles && data.profiles.length > 0) {
+                    data.profiles.forEach(profile => {
+                        const item = createProfileItem(profile);
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<div class="loading">No profiles yet</div>';
+                }
+                
+            } catch (error) {
+                console.error('Failed to load profiles:', error);
+            }
+        }
+        {% endif %}
+
+        // UI creation functions
+        function createRequestItem(request) {
+            const item = document.createElement('div');
+            item.className = 'request-item';
+            
+            const statusClass = getStatusClass(request.status_code);
+            
+            item.innerHTML = `
+                <div class="request-info">
+                    <div class="request-path">${request.method} ${request.path}</div>
+                    <div class="request-details">
+                        ${formatTime(request.formatted_start_time)} • 
+                        ${request.duration_ms.toFixed(0)}ms
+                        ${request.user_agent ? ' • ' + request.user_agent.substring(0, 30) + '...' : ''}
+                    </div>
+                </div>
+                <div class="status-badge ${statusClass}">${request.status_code}</div>
+            `;
+            
+            return item;
+        }
+
+        function createLogItem(log) {
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            
+            const levelClass = 'log-' + log.level.toLowerCase();
+            
+            item.innerHTML = `
+                <span class="log-level ${levelClass}">${log.level}</span>
+                <span class="log-message">${escapeHtml(log.message)}</span>
+            `;
+            
+            return item;
+        }
+
+        {% if config.debug.enable_profiler %}
+        function createProfileItem(profile) {
+            const item = document.createElement('div');
+            item.className = 'request-item';
+            
+            item.innerHTML = `
+                <div class="request-info">
+                    <div class="request-path">${profile.name}</div>
+                    <div class="request-details">
+                        ${formatTime(profile.start_time * 1000)} • 
+                        ${profile.duration_ms.toFixed(0)}ms
+                        ${profile.memory_usage ? ' • ' + profile.memory_usage.delta_mb.toFixed(1) + 'MB' : ''}
+                    </div>
+                </div>
+            `;
+            
+            return item;
+        }
+        {% endif %}
+
+        // Utility functions
+        function getStatusClass(statusCode) {
+            if (statusCode >= 200 && statusCode < 300) return 'status-2xx';
+            if (statusCode >= 300 && statusCode < 400) return 'status-3xx';
+            if (statusCode >= 400 && statusCode < 500) return 'status-4xx';
+            if (statusCode >= 500) return 'status-5xx';
+            return '';
+        }
+
+        function formatTime(timestamp) {
+            if (typeof timestamp === 'string') {
+                return timestamp.split(' ')[1];
+            }
+            return new Date(timestamp).toLocaleTimeString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+            isConnected = status === 'Connected';
+        }
+
+        // Control functions
+        function refreshAll() {
+            loadInitialData();
+        }
+
+        function refreshRequests() {
+            loadRequests();
+        }
+
+        function refreshLogs() {
+            loadLogs();
+        }
+
+        {% if config.debug.enable_profiler %}
+        function refreshProfiles() {
+            loadProfiles();
+        }
+        {% endif %}
+
+        async function exportData() {
+            try {
+                const response = await fetch('/api/export');
+                const data = await response.json();
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `debug-export-${new Date().toISOString().slice(0, 19)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('Failed to export data:', error);
+                alert('Failed to export data');
+            }
+        }
+
+        async function clearData() {
+            if (!confirm('Are you sure you want to clear all debug data?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'all' })
+                });
+                
+                if (response.ok) {
+                    await loadInitialData();
+                    alert('Debug data cleared successfully');
+                } else {
+                    alert('Failed to clear data');
+                }
+                
+            } catch (error) {
+                console.error('Failed to clear data:', error);
+                alert('Failed to clear data');
+            }
+        }
+
+        // Auto-refresh
+        function startAutoRefresh() {
+            {% if config.debug.enable_real_time_updates %}
+            updateInterval = setInterval(() => {
+                if (isConnected) {
+                    loadMetrics();
+                    // Only refresh visible tab content
+                    const activeTab = document.querySelector('.tab-content.active');
+                    if (activeTab.id === 'recent-requests') {
+                        loadRequests();
+                    } else if (activeTab.id === 'slow-requests') {
+                        loadSlowRequests();
+                    } else if (activeTab.id === 'error-requests') {
+                        loadErrorRequests();
+                    }
+                    
+                    loadLogs();
+                }
+            }, {{ config.debug.update_interval_ms or 5000 }});
+            {% endif %}
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html>

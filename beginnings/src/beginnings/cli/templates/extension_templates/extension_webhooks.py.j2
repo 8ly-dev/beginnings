@@ -1,0 +1,291 @@
+"""{{ extension_name | title }} webhook handlers."""
+
+from __future__ import annotations
+
+import hmac
+import hashlib
+import json
+import logging
+from typing import Any, Dict, List, Optional, Callable
+from datetime import datetime
+
+from fastapi import Request, HTTPException
+from fastapi.responses import JSONResponse
+
+
+logger = logging.getLogger(__name__)
+
+
+class {{ extension_name | title }}WebhookHandler:
+    """Handler for {{ extension_name }} webhooks."""
+    
+    def __init__(
+        self,
+        webhook_secret: str,
+        event_handlers: Optional[Dict[str, Callable]] = None,
+        verify_signatures: bool = True
+    ):
+        """Initialize webhook handler.
+        
+        Args:
+            webhook_secret: Secret key for webhook signature verification
+            event_handlers: Dictionary of event type to handler function mappings
+            verify_signatures: Whether to verify webhook signatures
+        """
+        self.webhook_secret = webhook_secret
+        self.event_handlers = event_handlers or {}
+        self.verify_signatures = verify_signatures
+        
+        # Register default event handlers
+        self._register_default_handlers()
+    
+    def _register_default_handlers(self):
+        """Register default event handlers."""
+        default_handlers = {
+            "ping": self._handle_ping,
+            "test": self._handle_test,
+            "error": self._handle_error
+        }
+        
+        for event_type, handler in default_handlers.items():
+            if event_type not in self.event_handlers:
+                self.event_handlers[event_type] = handler
+    
+    async def handle_webhook(self, request: Request) -> JSONResponse:
+        """Handle incoming webhook request.
+        
+        Args:
+            request: FastAPI request object
+            
+        Returns:
+            JSON response
+            
+        Raises:
+            HTTPException: If webhook processing fails
+        """
+        try:
+            # Get request body
+            body = await request.body()
+            
+            # Verify signature if enabled
+            if self.verify_signatures:
+                signature = request.headers.get("X-{{ extension_name | title }}-Signature")
+                if not self._verify_signature(body, signature):
+                    logger.warning("Invalid webhook signature")
+                    raise HTTPException(status_code=401, detail="Invalid signature")
+            
+            # Parse webhook data
+            try:
+                webhook_data = json.loads(body)
+            except json.JSONDecodeError:
+                logger.error("Invalid JSON in webhook body")
+                raise HTTPException(status_code=400, detail="Invalid JSON")
+            
+            # Extract event information
+            event_type = webhook_data.get("type") or webhook_data.get("event_type")
+            event_data = webhook_data.get("data", {})
+            event_id = webhook_data.get("id") or webhook_data.get("event_id")
+            
+            if not event_type:
+                logger.error("Missing event type in webhook")
+                raise HTTPException(status_code=400, detail="Missing event type")
+            
+            # Log webhook receipt
+            logger.info(f"Received webhook: {event_type} (ID: {event_id})")
+            
+            # Process the webhook
+            result = await self._process_webhook(event_type, event_data, webhook_data)
+            
+            return JSONResponse({
+                "status": "success",
+                "message": "Webhook processed successfully",
+                "event_id": event_id,
+                "result": result
+            })
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Webhook processing error: {e}")
+            raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
+    
+    def _verify_signature(self, body: bytes, signature: Optional[str]) -> bool:
+        """Verify webhook signature.
+        
+        Args:
+            body: Request body bytes
+            signature: Signature from headers
+            
+        Returns:
+            True if signature is valid
+        """
+        if not signature:
+            return False
+        
+        # Remove prefix if present (e.g., "sha256=")
+        if "=" in signature:
+            signature = signature.split("=", 1)[1]
+        
+        # Calculate expected signature
+        expected_signature = hmac.new(
+            self.webhook_secret.encode(),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        
+        # Compare signatures securely
+        return hmac.compare_digest(signature, expected_signature)
+    
+    async def _process_webhook(
+        self,
+        event_type: str,
+        event_data: Dict[str, Any],
+        full_webhook_data: Dict[str, Any]
+    ) -> Any:
+        """Process webhook event.
+        
+        Args:
+            event_type: Type of the event
+            event_data: Event-specific data
+            full_webhook_data: Complete webhook payload
+            
+        Returns:
+            Processing result
+        """
+        handler = self.event_handlers.get(event_type)
+        
+        if not handler:
+            logger.warning(f"No handler found for event type: {event_type}")
+            return {"message": f"No handler for event type: {event_type}"}
+        
+        try:
+            # Call the event handler
+            if asyncio.iscoroutinefunction(handler):
+                result = await handler(event_data, full_webhook_data)
+            else:
+                result = handler(event_data, full_webhook_data)
+            
+            logger.info(f"Successfully processed {event_type} event")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error processing {event_type} event: {e}")
+            raise
+    
+    def register_handler(self, event_type: str, handler: Callable):
+        """Register a handler for a specific event type.
+        
+        Args:
+            event_type: Type of event to handle
+            handler: Handler function (sync or async)
+        """
+        self.event_handlers[event_type] = handler
+        logger.info(f"Registered handler for {event_type} events")
+    
+    # Default event handlers
+    
+    async def _handle_ping(
+        self,
+        event_data: Dict[str, Any],
+        webhook_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle ping events.
+        
+        Args:
+            event_data: Event data
+            webhook_data: Full webhook data
+            
+        Returns:
+            Ping response
+        """
+        return {
+            "pong": True,
+            "timestamp": datetime.utcnow().isoformat(),
+            "message": "{{ extension_name }} webhook endpoint is healthy"
+        }
+    
+    async def _handle_test(
+        self,
+        event_data: Dict[str, Any],
+        webhook_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle test events.
+        
+        Args:
+            event_data: Event data
+            webhook_data: Full webhook data
+            
+        Returns:
+            Test response
+        """
+        logger.info("Received test webhook event")
+        return {
+            "test_received": True,
+            "event_data": event_data,
+            "processed_at": datetime.utcnow().isoformat()
+        }
+    
+    async def _handle_error(
+        self,
+        event_data: Dict[str, Any],
+        webhook_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle error events.
+        
+        Args:
+            event_data: Event data
+            webhook_data: Full webhook data
+            
+        Returns:
+            Error acknowledgment
+        """
+        error_message = event_data.get("message", "Unknown error")
+        error_code = event_data.get("code", "unknown")
+        
+        logger.error(f"Received error event: {error_code} - {error_message}")
+        
+        # You could send notifications, trigger alerts, etc.
+        
+        return {
+            "error_acknowledged": True,
+            "error_code": error_code,
+            "error_message": error_message,
+            "acknowledged_at": datetime.utcnow().isoformat()
+        }
+
+
+# Convenience functions for common webhook patterns
+
+def create_webhook_handler(
+    webhook_secret: str,
+    **kwargs
+) -> {{ extension_name | title }}WebhookHandler:
+    """Create a webhook handler instance.
+    
+    Args:
+        webhook_secret: Secret for signature verification
+        **kwargs: Additional handler configuration
+        
+    Returns:
+        Configured webhook handler
+    """
+    return {{ extension_name | title }}WebhookHandler(
+        webhook_secret=webhook_secret,
+        **kwargs
+    )
+
+
+def webhook_route_factory(handler: {{ extension_name | title }}WebhookHandler):
+    """Factory for creating webhook route handlers.
+    
+    Args:
+        handler: Webhook handler instance
+        
+    Returns:
+        FastAPI route handler function
+    """
+    async def webhook_route(request: Request) -> JSONResponse:
+        """Webhook route handler."""
+        return await handler.handle_webhook(request)
+    
+    return webhook_route

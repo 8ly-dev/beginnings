@@ -1,0 +1,14 @@
+# Development environment configuration
+# Includes the base configuration and adds development-specific overrides
+
+include:
+  - "app.yaml"
+
+app:
+  debug: true
+  host: "127.0.0.1"
+
+
+
+
+

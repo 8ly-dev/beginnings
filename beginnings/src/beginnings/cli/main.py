@@ -5,7 +5,11 @@ from typing import Optional
 
 from .commands.config import config_group
 from .commands.new import new_command  
-from .commands.run import run_command
+from .commands.run import (
+    run_command, dev_command, watch_command, reload_command, hot_reload_command,
+    debug_command, profile_command, analyze_command
+)
+from .commands.extension import extension_group
 from .utils.colors import Colors, format_message
 from .utils.errors import CLIError, handle_cli_error
 
@@ -61,6 +65,18 @@ def cli(ctx: click.Context, config_dir: Optional[str], env: Optional[str], verbo
 cli.add_command(config_group)
 cli.add_command(new_command)
 cli.add_command(run_command)
+cli.add_command(extension_group)
+
+# Add auto-reload commands
+cli.add_command(dev_command)
+cli.add_command(watch_command)
+cli.add_command(reload_command)
+cli.add_command(hot_reload_command)
+
+# Add debug commands
+cli.add_command(debug_command)
+cli.add_command(profile_command)
+cli.add_command(analyze_command)
 
 
 def main():

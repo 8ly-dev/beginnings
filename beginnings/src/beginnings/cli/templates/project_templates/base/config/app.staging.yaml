@@ -1,0 +1,54 @@
+# Staging environment configuration
+# Production-like settings with some accommodations for testing
+
+include:
+  - "app.yaml"
+
+app:
+  debug: false
+
+{% if include_auth %}
+# Staging auth settings
+auth:
+  providers:
+    session:
+      cookie_secure: true
+      session_timeout: 3600
+    {% if include_api %}
+    jwt:
+      token_expire_minutes: 60  # 1 hour for staging
+    {% endif %}
+  
+  security:
+    account_lockout_attempts: 3  # Stricter in staging
+{% endif %}
+
+{% if include_rate_limiting %}
+# Production-like rate limits
+rate_limiting:
+  global:
+    requests: 1000
+    window_seconds: 3600
+  
+  routes:
+    "/login":
+      requests: 3  # Stricter login attempts
+      window_seconds: 300
+{% endif %}
+
+{% if include_security_headers %}
+# Full security headers for staging
+security:
+  headers:
+    strict_transport_security:
+      max_age: 31536000
+      include_subdomains: true
+  
+  csp:
+    enabled: true
+    # Strict CSP for staging/production
+    directives:
+      default_src: ["'self'"]
+      script_src: ["'self'", "'nonce-{nonce}'"]
+      style_src: ["'self'", "'nonce-{nonce}'"]
+{% endif %}

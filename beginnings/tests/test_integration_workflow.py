@@ -22,7 +22,7 @@ from beginnings.extensions.base import BaseExtension
 
 
 # Test extensions for integration testing
-class TestAuthExtension(BaseExtension):
+class MockAuthExtension(BaseExtension):
     """Authentication extension for integration testing."""
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -54,7 +54,7 @@ class TestAuthExtension(BaseExtension):
         return route_config.get("auth_required", False)
 
 
-class TestLoggingExtension(BaseExtension):
+class MockLoggingExtension(BaseExtension):
     """Logging extension for integration testing."""
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -124,11 +124,11 @@ class TestCompleteWorkflowIntegration:
                 }
             },
             "extensions": {
-                "tests.test_integration_workflow:TestAuthExtension": {
+                "tests.test_integration_workflow:MockAuthExtension": {
                     "enabled": True,
                     "strict_mode": True
                 },
-                "tests.test_integration_workflow:TestLoggingExtension": {
+                "tests.test_integration_workflow:MockLoggingExtension": {
                     "log_level": "INFO",
                     "log_requests": True
                 }
@@ -171,13 +171,13 @@ class TestCompleteWorkflowIntegration:
             assert environment == "development"
 
             # Verify extensions were loaded from configuration
-            auth_ext = app.get_extension("TestAuthExtension")
-            logging_ext = app.get_extension("TestLoggingExtension")
+            auth_ext = app.get_extension("MockAuthExtension")
+            logging_ext = app.get_extension("MockLoggingExtension")
             
             assert auth_ext is not None
-            assert isinstance(auth_ext, TestAuthExtension)
+            assert isinstance(auth_ext, MockAuthExtension)
             assert logging_ext is not None
-            assert isinstance(logging_ext, TestLoggingExtension)
+            assert isinstance(logging_ext, MockLoggingExtension)
 
         finally:
             import shutil
@@ -226,8 +226,8 @@ class TestCompleteWorkflowIntegration:
             app = App(config_dir=temp_dir, environment="development")
 
             # Verify extensions were loaded from configuration
-            auth_ext = app.get_extension("TestAuthExtension")
-            logging_ext = app.get_extension("TestLoggingExtension") 
+            auth_ext = app.get_extension("MockAuthExtension")
+            logging_ext = app.get_extension("MockLoggingExtension") 
 
             assert auth_ext is not None
             assert logging_ext is not None
@@ -310,8 +310,8 @@ class TestCompleteWorkflowIntegration:
             assert json_data["users"] == ["alice", "bob"]
 
             # Verify extensions processed requests
-            auth_ext = app.get_extension("TestAuthExtension")
-            logging_ext = app.get_extension("TestLoggingExtension")
+            auth_ext = app.get_extension("MockAuthExtension")
+            logging_ext = app.get_extension("MockLoggingExtension")
 
             # Auth extension should have processed requests (only routes with auth_required=True)
             # Only /api/users has auth_required=True in our config
@@ -350,8 +350,8 @@ class TestCompleteWorkflowIntegration:
             assert public_config.get("rate_limit") == 1000
 
             # Verify extensions respect configuration
-            auth_ext = app.get_extension("TestAuthExtension")
-            logging_ext = app.get_extension("TestLoggingExtension")
+            auth_ext = app.get_extension("MockAuthExtension")
+            logging_ext = app.get_extension("MockLoggingExtension")
 
             # Test extension route applicability based on configuration
             assert auth_ext.should_apply_to_route("/api/users", ["GET"], users_config) is True
@@ -389,8 +389,8 @@ class TestCompleteWorkflowIntegration:
             assert response.status_code in [401, 403, 500]  # Auth failure status codes
 
             # Verify error was logged by extension
-            auth_ext = app.get_extension("TestAuthExtension")
-            logging_ext = app.get_extension("TestLoggingExtension")
+            auth_ext = app.get_extension("MockAuthExtension")
+            logging_ext = app.get_extension("MockLoggingExtension")
 
             # Extensions should have been configured properly even if request failed
             assert auth_ext is not None
@@ -554,8 +554,8 @@ class TestRealWorldScenarios:
                 }
             },
             "extensions": {
-                "tests.test_integration_workflow:TestAuthExtension": {"enabled": True},
-                "tests.test_integration_workflow:TestLoggingExtension": {"log_requests": True}
+                "tests.test_integration_workflow:MockAuthExtension": {"enabled": True},
+                "tests.test_integration_workflow:MockLoggingExtension": {"log_requests": True}
             }
         }
 
@@ -670,8 +670,8 @@ class TestRealWorldScenarios:
             assert admin_config.get("admin_only") is True
 
             # Verify extensions were active
-            auth_ext = app.get_extension("TestAuthExtension")
-            logging_ext = app.get_extension("TestLoggingExtension")
+            auth_ext = app.get_extension("MockAuthExtension")
+            logging_ext = app.get_extension("MockLoggingExtension")
 
             assert auth_ext is not None
             assert logging_ext is not None
@@ -709,7 +709,7 @@ class TestRealWorldScenarios:
                 }
             },
             "extensions": {
-                "tests.test_integration_workflow:TestLoggingExtension": {"service_name": "user_service"}
+                "tests.test_integration_workflow:MockLoggingExtension": {"service_name": "user_service"}
             }
         }
 

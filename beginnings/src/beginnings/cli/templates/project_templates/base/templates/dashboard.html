@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h1>Welcome, {{ username }}! 👋</h1>
+    <p style="color: #666;">This is your protected dashboard area.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0;">
+    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #28a745;">
+        <h3 style="color: #28a745; margin-top: 0;">🔐 Authentication Status</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li>✅ Logged in as: <strong>{{ username }}</strong></li>
+            <li>✅ Session active</li>
+            {% if include_csrf %}
+            <li>✅ CSRF protection enabled</li>
+            {% endif %}
+            <li>✅ Secure cookies</li>
+        </ul>
+    </div>
+    
+    {% if include_api %}
+    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #007bff;">
+        <h3 style="color: #007bff; margin-top: 0;">🔌 API Access</h3>
+        <p>Your API endpoints are available:</p>
+        <ul style="list-style: none; padding: 0;">
+            <li><a href="/api/v1/users" target="_blank">📋 Users API</a></li>
+            <li><a href="/api/v1/users/me" target="_blank">👤 Profile API</a></li>
+            <li><a href="/api/v1/protected" target="_blank">🔒 Protected Data</a></li>
+            <li><a href="/docs" target="_blank">📚 API Documentation</a></li>
+        </ul>
+    </div>
+    {% endif %}
+    
+    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #6f42c1;">
+        <h3 style="color: #6f42c1; margin-top: 0;">⚡ Quick Actions</h3>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <a href="/about" class="btn btn-secondary" style="text-align: center;">About This App</a>
+            {% if include_api %}
+            <a href="/docs" class="btn btn-secondary" style="text-align: center;" target="_blank">API Docs</a>
+            {% endif %}
+            <form method="post" action="/logout" style="margin: 0;">
+                {% if include_csrf %}
+                {{ csrf_token() }}
+                {% endif %}
+                <button type="submit" class="btn" style="width: 100%; background: #dc3545;">
+                    Logout
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div style="background: #e3f2fd; padding: 1.5rem; border-radius: 8px; margin: 2rem 0;">
+    <h3 style="color: #1976d2; margin-top: 0;">🚀 Development Information</h3>
+    <p>This is a demo dashboard showing authentication integration. In a real application, you would:</p>
+    <ul>
+        <li>Implement proper user registration and password validation</li>
+        <li>Connect to a real database for user storage</li>
+        <li>Add role-based access control (RBAC)</li>
+        <li>Implement password reset functionality</li>
+        <li>Add user profile management</li>
+        <li>Configure OAuth providers for social login</li>
+    </ul>
+</div>
+
+{% if include_rate_limiting %}
+<div style="background: #fff3cd; padding: 1.5rem; border-radius: 8px; margin: 2rem 0;">
+    <h3 style="color: #856404; margin-top: 0;">⚡ Rate Limiting Active</h3>
+    <p style="color: #856404; margin-bottom: 0;">
+        This application has rate limiting configured to protect against abuse. 
+        If you're developing, you can adjust the limits in <code>config/app.dev.yaml</code>.
+    </p>
+</div>
+{% endif %}
+
+{% if include_security_headers %}
+<div style="background: #d4edda; padding: 1.5rem; border-radius: 8px; margin: 2rem 0;">
+    <h3 style="color: #155724; margin-top: 0;">🛡️ Security Headers Enabled</h3>
+    <p style="color: #155724; margin-bottom: 0;">
+        This application is protected with comprehensive security headers including CSP, 
+        HSTS, and frame protection. Check the browser developer tools to see them in action.
+    </p>
+</div>
+{% endif %}
+{% endblock %}
