@@ -13,6 +13,195 @@ from .profiler import PerformanceProfiler
 from .config import DebugConfig
 
 
+class MiddlewareTimelineTracker:
+    """Tracks middleware execution timeline for visual debugging."""
+    
+    def __init__(self, max_timelines: int = 100):
+        """Initialize middleware timeline tracker.
+        
+        Args:
+            max_timelines: Maximum number of request timelines to keep
+        """
+        self.max_timelines = max_timelines
+        self._timelines: Dict[str, Dict[str, Any]] = {}
+        self._lock = RLock()
+    
+    def start_timeline(self, request_id: str, middleware_stack: List[str]) -> None:
+        """Start tracking a middleware execution timeline.
+        
+        Args:
+            request_id: Unique request identifier
+            middleware_stack: List of middleware names in execution order
+        """
+        with self._lock:
+            self._timelines[request_id] = {
+                "request_id": request_id,
+                "middleware_stack": middleware_stack,
+                "executions": [],
+                "start_time": time.time(),
+                "total_duration": None,
+                "route_resolution": None,
+                "configuration_used": {}
+            }
+            
+            # Maintain max timeline limit
+            if len(self._timelines) > self.max_timelines:
+                oldest_key = min(self._timelines.keys(), 
+                               key=lambda k: self._timelines[k]["start_time"])
+                del self._timelines[oldest_key]
+    
+    def track_middleware_execution(
+        self, 
+        request_id: str, 
+        middleware_name: str, 
+        execution_type: str,  # 'before' or 'after'
+        duration: float = None,
+        configuration: Dict[str, Any] = None,
+        decision_points: Dict[str, Any] = None
+    ) -> None:
+        """Track individual middleware execution.
+        
+        Args:
+            request_id: Request identifier
+            middleware_name: Name of the middleware
+            execution_type: 'before' or 'after' request processing
+            duration: Execution duration in seconds
+            configuration: Middleware configuration used
+            decision_points: Decision points (auth success, rate limit status, etc.)
+        """
+        with self._lock:
+            if request_id not in self._timelines:
+                return
+            
+            execution_data = {
+                "middleware_name": middleware_name,
+                "execution_type": execution_type,
+                "timestamp": time.time(),
+                "duration": duration,
+                "configuration": configuration or {},
+                "decision_points": decision_points or {}
+            }
+            
+            self._timelines[request_id]["executions"].append(execution_data)
+            
+            # Update configuration tracking
+            if configuration:
+                self._timelines[request_id]["configuration_used"][middleware_name] = configuration
+    
+    def track_route_resolution(
+        self, 
+        request_id: str, 
+        route_pattern: str, 
+        route_handler: str,
+        route_config: Dict[str, Any] = None,
+        resolution_time: float = None
+    ) -> None:
+        """Track route resolution details.
+        
+        Args:
+            request_id: Request identifier
+            route_pattern: Matched route pattern
+            route_handler: Handler function/method name
+            route_config: Route configuration
+            resolution_time: Time taken to resolve route
+        """
+        with self._lock:
+            if request_id not in self._timelines:
+                return
+            
+            self._timelines[request_id]["route_resolution"] = {
+                "pattern": route_pattern,
+                "handler": route_handler,
+                "config": route_config or {},
+                "resolution_time": resolution_time,
+                "timestamp": time.time()
+            }
+    
+    def complete_timeline(self, request_id: str) -> None:
+        """Mark timeline as complete and calculate total duration.
+        
+        Args:
+            request_id: Request identifier
+        """
+        with self._lock:
+            if request_id not in self._timelines:
+                return
+            
+            timeline = self._timelines[request_id]
+            timeline["total_duration"] = time.time() - timeline["start_time"]
+    
+    def get_timeline(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """Get timeline data for a specific request.
+        
+        Args:
+            request_id: Request identifier
+            
+        Returns:
+            Timeline data or None if not found
+        """
+        with self._lock:
+            return self._timelines.get(request_id)
+    
+    def get_all_timelines(self) -> Dict[str, Dict[str, Any]]:
+        """Get all timeline data.
+        
+        Returns:
+            Dictionary of all timeline data
+        """
+        with self._lock:
+            return dict(self._timelines)
+    
+    def get_timeline_visualization_data(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """Get timeline data formatted for visualization.
+        
+        Args:
+            request_id: Request identifier
+            
+        Returns:
+            Visualization-ready timeline data
+        """
+        timeline = self.get_timeline(request_id)
+        if not timeline:
+            return None
+        
+        # Organize executions into timeline format
+        events = []
+        base_time = timeline["start_time"]
+        
+        for execution in timeline["executions"]:
+            events.append({
+                "name": f"{execution['middleware_name']} ({execution['execution_type']})",
+                "start": (execution["timestamp"] - base_time) * 1000,  # Convert to ms
+                "duration": (execution.get("duration", 0)) * 1000,
+                "type": execution["execution_type"],
+                "middleware": execution["middleware_name"],
+                "config": execution["configuration"],
+                "decisions": execution["decision_points"]
+            })
+        
+        # Add route resolution event
+        if timeline["route_resolution"]:
+            route_res = timeline["route_resolution"]
+            resolution_time = route_res.get("resolution_time") or 0
+            events.append({
+                "name": f"Route: {route_res['pattern']}",
+                "start": (route_res["timestamp"] - base_time) * 1000,
+                "duration": resolution_time * 1000,
+                "type": "route_resolution",
+                "pattern": route_res["pattern"],
+                "handler": route_res["handler"],
+                "config": route_res["config"]
+            })
+        
+        return {
+            "request_id": request_id,
+            "total_duration": timeline["total_duration"] * 1000 if timeline["total_duration"] else 0,
+            "middleware_stack": timeline["middleware_stack"],
+            "events": sorted(events, key=lambda x: x["start"]),
+            "configuration_summary": timeline["configuration_used"]
+        }
+
+
 class DebugMiddleware:
     """Middleware for debugging and performance monitoring."""
     
@@ -56,6 +245,11 @@ class DebugMiddleware:
             profile_cpu=self.config.enable_cpu_profiling,
             profile_memory=self.config.enable_memory_profiling,
             profile_threshold_ms=self.config.profile_threshold_ms
+        )
+        
+        # Initialize timeline tracker
+        self.timeline_tracker = MiddlewareTimelineTracker(
+            max_timelines=max_request_history
         )
         
         # Request context storage
@@ -458,3 +652,93 @@ class DebugMiddleware:
             return str(response.data)
         
         return ""
+    
+    # Timeline tracking methods
+    def start_middleware_timeline(self, request_id: str, middleware_stack: List[str]) -> None:
+        """Start tracking middleware execution timeline.
+        
+        Args:
+            request_id: Unique request identifier
+            middleware_stack: List of middleware names in execution order
+        """
+        self.timeline_tracker.start_timeline(request_id, middleware_stack)
+    
+    def track_middleware_execution(
+        self, 
+        request_id: str, 
+        middleware_name: str, 
+        execution_type: str,
+        duration: float = None,
+        configuration: Dict[str, Any] = None,
+        decision_points: Dict[str, Any] = None
+    ) -> None:
+        """Track individual middleware execution.
+        
+        Args:
+            request_id: Request identifier
+            middleware_name: Name of the middleware
+            execution_type: 'before' or 'after' request processing
+            duration: Execution duration in seconds
+            configuration: Middleware configuration used
+            decision_points: Decision points (auth success, rate limit status, etc.)
+        """
+        self.timeline_tracker.track_middleware_execution(
+            request_id, middleware_name, execution_type, 
+            duration, configuration, decision_points
+        )
+    
+    def track_route_resolution(
+        self, 
+        request_id: str, 
+        route_pattern: str, 
+        route_handler: str,
+        route_config: Dict[str, Any] = None,
+        resolution_time: float = None
+    ) -> None:
+        """Track route resolution details.
+        
+        Args:
+            request_id: Request identifier
+            route_pattern: Matched route pattern
+            route_handler: Handler function/method name
+            route_config: Route configuration
+            resolution_time: Time taken to resolve route
+        """
+        self.timeline_tracker.track_route_resolution(
+            request_id, route_pattern, route_handler, route_config, resolution_time
+        )
+    
+    def complete_middleware_timeline(self, request_id: str) -> None:
+        """Complete middleware timeline tracking.
+        
+        Args:
+            request_id: Request identifier
+        """
+        self.timeline_tracker.complete_timeline(request_id)
+    
+    def get_timeline_data(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """Get timeline data for a specific request.
+        
+        Args:
+            request_id: Request identifier
+            
+        Returns:
+            Timeline data or None if not found
+        """
+        return self.timeline_tracker.get_timeline_visualization_data(request_id)
+    
+    def get_all_timeline_data(self) -> Dict[str, Dict[str, Any]]:
+        """Get all timeline data.
+        
+        Returns:
+            Dictionary of all timeline data formatted for visualization
+        """
+        all_timelines = self.timeline_tracker.get_all_timelines()
+        visualization_data = {}
+        
+        for request_id in all_timelines:
+            viz_data = self.timeline_tracker.get_timeline_visualization_data(request_id)
+            if viz_data:
+                visualization_data[request_id] = viz_data
+        
+        return visualization_data

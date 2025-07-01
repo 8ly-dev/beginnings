@@ -23,6 +23,8 @@ from .logs import LogStreamer
 from .requests import RequestTracker
 from .profiler import PerformanceProfiler
 from .websocket import WebSocketManager, DebugWebSocketHandler
+from .extension_monitor import ExtensionDependencyTracker, ExtensionDevelopmentTools
+from .template_debugger import TemplateContextInspector, DatabaseQueryDebugger
 
 
 class DebugDashboard:
@@ -75,6 +77,12 @@ class DebugDashboard:
         # WebSocket for real-time updates
         self.websocket_manager = WebSocketManager()
         self.websocket_handler = DebugWebSocketHandler(self.websocket_manager)
+        
+        # Advanced debugging components
+        self.extension_tracker = ExtensionDependencyTracker()
+        self.extension_tools = ExtensionDevelopmentTools(self.extension_tracker)
+        self.template_inspector = TemplateContextInspector()
+        self.db_debugger = DatabaseQueryDebugger()
         
         # Beginnings app
         self.app = None
@@ -288,6 +296,144 @@ class DebugDashboard:
                 return HTMLResponse(content, headers={"Content-Type": content_type})
             
             return APIResponse({"error": "File not found"}, status_code=404)
+        
+        # Advanced debugging API endpoints
+        @app.get("/api/timeline/{request_id}")
+        def api_timeline(request_id: str):
+            """Get middleware timeline for a specific request."""
+            from .middleware import DebugMiddleware
+            
+            # This would be accessed through a global debug middleware instance
+            # For now, return empty data
+            return APIResponse({
+                "request_id": request_id,
+                "timeline_available": False,
+                "message": "Timeline tracking requires integration with application middleware"
+            })
+        
+        @app.get("/api/extensions")
+        def api_extensions():
+            """Get extension status and dependency information."""
+            extensions = self.extension_tracker.get_all_extensions()
+            dependency_graph = self.extension_tracker.get_dependency_graph()
+            health_summary = self.extension_tracker.get_extension_health_summary()
+            circular_deps = self.extension_tracker.get_circular_dependencies()
+            
+            return APIResponse({
+                "extensions": extensions,
+                "dependency_graph": {k: list(v) for k, v in dependency_graph.items()},
+                "health_summary": health_summary,
+                "circular_dependencies": circular_deps,
+                "loading_order": self.extension_tracker.get_loading_order()
+            })
+        
+        @app.get("/api/extensions/{extension_name}")
+        def api_extension_details(extension_name: str):
+            """Get detailed information about a specific extension."""
+            extension = self.extension_tracker.get_extension_status(extension_name)
+            if not extension:
+                return APIResponse({"error": "Extension not found"}, status_code=404)
+            
+            return APIResponse({
+                "extension": extension,
+                "loading_events": [
+                    event for event in self.extension_tracker.get_loading_events(50)
+                    if event["extension_name"] == extension_name
+                ]
+            })
+        
+        @app.get("/api/templates")
+        def api_templates():
+            """Get template rendering information."""
+            recent_renders = self.template_inspector.get_recent_renders(50)
+            template_errors = self.template_inspector.get_template_errors(25)
+            performance_summary = self.template_inspector.get_performance_summary()
+            
+            return APIResponse({
+                "recent_renders": recent_renders,
+                "template_errors": template_errors,
+                "performance_summary": performance_summary
+            })
+        
+        @app.get("/api/templates/{render_id}")
+        def api_template_details(render_id: str):
+            """Get detailed information about a specific template render."""
+            render_data = self.template_inspector.get_render_data(render_id)
+            if not render_data:
+                return APIResponse({"error": "Render not found"}, status_code=404)
+            
+            context_data = self.template_inspector.get_context_for_render(render_id)
+            queries = self.db_debugger.get_queries_for_render(render_id)
+            
+            return APIResponse({
+                "render": render_data,
+                "context": context_data,
+                "database_queries": queries
+            })
+        
+        @app.get("/api/templates/template/{template_name}")
+        def api_template_renders(template_name: str, limit: int = 25):
+            """Get renders for a specific template."""
+            renders = self.template_inspector.get_template_renders(template_name, limit)
+            return APIResponse({"renders": renders})
+        
+        @app.get("/api/database/queries")
+        def api_database_queries(limit: int = 50):
+            """Get recent database queries."""
+            recent_queries = self.db_debugger.get_recent_queries(limit)
+            slow_queries = self.db_debugger.get_slow_queries(100)  # 100ms threshold
+            
+            return APIResponse({
+                "recent_queries": recent_queries,
+                "slow_queries": slow_queries
+            })
+        
+        @app.post("/api/extensions/validate")
+        async def api_validate_extension(request: Request):
+            """Validate extension configuration."""
+            try:
+                body = await request.body()
+                data = json.loads(body)
+                extension_name = data.get("extension_name")
+                config = data.get("config", {})
+                
+                if not extension_name:
+                    return APIResponse({"error": "extension_name required"}, status_code=400)
+                
+                validation_result = self.extension_tools.validate_extension_config(
+                    extension_name, config
+                )
+                
+                return APIResponse({
+                    "validation_result": validation_result
+                })
+            except json.JSONDecodeError:
+                return APIResponse({"error": "Invalid JSON"}, status_code=400)
+        
+        @app.post("/api/extensions/scaffold")
+        async def api_scaffold_extension(request: Request):
+            """Generate extension scaffold."""
+            try:
+                body = await request.body()
+                data = json.loads(body)
+                extension_name = data.get("extension_name")
+                output_dir = data.get("output_dir")
+                template_type = data.get("template_type", "basic")
+                
+                if not extension_name or not output_dir:
+                    return APIResponse({
+                        "error": "extension_name and output_dir required"
+                    }, status_code=400)
+                
+                scaffold_result = self.extension_tools.generate_extension_scaffold(
+                    extension_name, output_dir, template_type
+                )
+                
+                return APIResponse({
+                    "scaffold_result": scaffold_result
+                })
+            except json.JSONDecodeError:
+                return APIResponse({"error": "Invalid JSON"}, status_code=400)
         
         self.app = app
         return app
