@@ -8,8 +8,8 @@ import json
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
-from src.beginnings.cli.main import cli
-from src.beginnings.config.enhanced_loader import load_config_with_includes
+from beginnings.cli.main import cli
+from beginnings.config.enhanced_loader import load_config_with_includes
 
 
 class TestConfigurationValidation:

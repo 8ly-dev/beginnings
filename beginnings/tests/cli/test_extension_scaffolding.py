@@ -7,8 +7,8 @@ import shutil
 from pathlib import Path
 from click.testing import CliRunner
 
-from src.beginnings.cli.main import cli
-from src.beginnings.cli.commands.extension import (
+from beginnings.cli.main import cli
+from beginnings.cli.commands.extension import (
     ExtensionScaffolder, ExtensionValidator, ExtensionLister
 )
 

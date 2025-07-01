@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
-from src.beginnings.cli.main import cli
+from beginnings.cli.main import cli
 
 
 class TestAutoReloadSystem:
@@ -116,7 +116,7 @@ class TestFileWatcher:
     
     def test_file_watcher_initialization(self):
         """Test file watcher can be initialized."""
-        from src.beginnings.cli.reload.watcher import FileWatcher
+        from beginnings.cli.reload.watcher import FileWatcher
         
         watcher = FileWatcher(
             path=self.temp_dir,
@@ -131,7 +131,7 @@ class TestFileWatcher:
     
     def test_file_watcher_detects_changes(self):
         """Test file watcher detects file changes."""
-        from src.beginnings.cli.reload.watcher import FileWatcher
+        from beginnings.cli.reload.watcher import FileWatcher
         
         # Create callback to track changes
         changes = []
@@ -167,7 +167,7 @@ class TestFileWatcher:
     
     def test_file_watcher_ignores_patterns(self):
         """Test file watcher ignores specified patterns."""
-        from src.beginnings.cli.reload.watcher import FileWatcher
+        from beginnings.cli.reload.watcher import FileWatcher
         
         changes = []
         def on_change(event):
@@ -200,7 +200,7 @@ class TestFileWatcher:
     
     def test_file_watcher_handles_directory_changes(self):
         """Test file watcher handles directory creation/deletion."""
-        from src.beginnings.cli.reload.watcher import FileWatcher
+        from beginnings.cli.reload.watcher import FileWatcher
         
         changes = []
         def on_change(event):
@@ -244,7 +244,7 @@ class TestAutoReloadRunner:
     
     def test_auto_reload_runner_initialization(self):
         """Test auto-reload runner can be initialized."""
-        from src.beginnings.cli.reload.runner import AutoReloadRunner
+        from beginnings.cli.reload.runner import AutoReloadRunner
         
         app_file = os.path.join(self.temp_dir, "app.py")
         with open(app_file, "w") as f:
@@ -264,7 +264,7 @@ class TestAutoReloadRunner:
     
     def test_auto_reload_runner_starts_process(self):
         """Test auto-reload runner starts application process."""
-        from src.beginnings.cli.reload.runner import AutoReloadRunner
+        from beginnings.cli.reload.runner import AutoReloadRunner
         
         app_file = os.path.join(self.temp_dir, "app.py")
         with open(app_file, "w") as f:
@@ -291,7 +291,7 @@ time.sleep(10)  # Keep running
     
     def test_auto_reload_runner_handles_file_changes(self):
         """Test auto-reload runner handles file changes by restarting."""
-        from src.beginnings.cli.reload.runner import AutoReloadRunner
+        from beginnings.cli.reload.runner import AutoReloadRunner
         
         app_file = os.path.join(self.temp_dir, "app.py")
         with open(app_file, "w") as f:
@@ -318,7 +318,7 @@ time.sleep(10)  # Keep running
     
     def test_auto_reload_runner_debounces_changes(self):
         """Test auto-reload runner debounces rapid file changes."""
-        from src.beginnings.cli.reload.runner import AutoReloadRunner
+        from beginnings.cli.reload.runner import AutoReloadRunner
         
         app_file = os.path.join(self.temp_dir, "app.py")
         with open(app_file, "w") as f:
@@ -348,7 +348,7 @@ time.sleep(10)  # Keep running
     
     def test_auto_reload_runner_graceful_shutdown(self):
         """Test auto-reload runner can shutdown gracefully."""
-        from src.beginnings.cli.reload.runner import AutoReloadRunner
+        from beginnings.cli.reload.runner import AutoReloadRunner
         
         app_file = os.path.join(self.temp_dir, "app.py")
         with open(app_file, "w") as f:
@@ -418,7 +418,7 @@ class TestHotReloadIntegration:
     
     def test_hot_reload_detects_route_changes(self):
         """Test hot reload detects changes to route files."""
-        from src.beginnings.cli.reload.hot_reload import HotReloadManager
+        from beginnings.cli.reload.hot_reload import HotReloadManager
         
         routes_file = os.path.join(self.temp_dir, "routes.py")
         with open(routes_file, "w") as f:
@@ -462,7 +462,7 @@ def home():
     
     def test_hot_reload_detects_config_changes(self):
         """Test hot reload detects configuration changes."""
-        from src.beginnings.cli.reload.hot_reload import HotReloadManager
+        from beginnings.cli.reload.hot_reload import HotReloadManager
         
         config_file = os.path.join(self.temp_dir, "app.yaml")
         with open(config_file, "w") as f:
@@ -506,7 +506,7 @@ app:
     
     def test_hot_reload_ignores_temp_files(self):
         """Test hot reload ignores temporary and cache files."""
-        from src.beginnings.cli.reload.hot_reload import HotReloadManager
+        from beginnings.cli.reload.hot_reload import HotReloadManager
         
         manager = HotReloadManager(
             watch_paths=[self.temp_dir],
@@ -550,7 +550,7 @@ class TestReloadConfiguration:
     
     def test_reload_config_from_yaml(self):
         """Test loading reload configuration from YAML."""
-        from src.beginnings.cli.reload.config import ReloadConfig
+        from beginnings.cli.reload.config import ReloadConfig
         
         config_data = {
             "auto_reload": {
@@ -576,7 +576,7 @@ class TestReloadConfiguration:
     
     def test_reload_config_defaults(self):
         """Test reload configuration with default values."""
-        from src.beginnings.cli.reload.config import ReloadConfig
+        from beginnings.cli.reload.config import ReloadConfig
         
         reload_config = ReloadConfig()
         
@@ -589,7 +589,7 @@ class TestReloadConfiguration:
     
     def test_reload_config_validation(self):
         """Test reload configuration validation."""
-        from src.beginnings.cli.reload.config import ReloadConfig
+        from beginnings.cli.reload.config import ReloadConfig
         
         # Test invalid delay
         with pytest.raises(ValueError, match="reload_delay must be positive"):

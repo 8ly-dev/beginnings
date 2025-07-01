@@ -5,19 +5,19 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
 
-from src.beginnings.testing.extension_test import (
+from beginnings.testing.extension_test import (
     ExtensionTestMixin, 
     ExtensionTestCase, 
     AsyncExtensionTestCase
 )
-from src.beginnings.testing.fixtures import ExtensionFixtures, BeginningsTestFixtures
-from src.beginnings.testing.mocks import (
+from beginnings.testing.fixtures import ExtensionFixtures, BeginningsTestFixtures
+from beginnings.testing.mocks import (
     MockRequest, MockResponse, MockExtension, MockMiddleware,
     MockBeginningsApp, MockHTTPClient, MockDatabase, MockLogger
 )
-from src.beginnings.testing.assertions import ExtensionAssertions
-from src.beginnings.testing.runners import ExtensionTestRunner, IntegrationTestRunner
-from src.beginnings.extensions.base import BaseExtension
+from beginnings.testing.assertions import ExtensionAssertions
+from beginnings.testing.runners import ExtensionTestRunner, IntegrationTestRunner
+from beginnings.extensions.base import BaseExtension
 
 
 class ExtensionForTesting(BaseExtension):

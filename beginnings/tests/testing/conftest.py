@@ -4,12 +4,12 @@ import pytest
 import asyncio
 from typing import Any, Dict
 
-from src.beginnings.testing.fixtures import BeginningsTestFixtures
-from src.beginnings.testing.mocks import (
+from beginnings.testing.fixtures import BeginningsTestFixtures
+from beginnings.testing.mocks import (
     MockBeginningsApp, MockRequest, MockResponse, 
     MockHTTPClient, MockDatabase, MockLogger
 )
-from src.beginnings.testing.assertions import ExtensionAssertions
+from beginnings.testing.assertions import ExtensionAssertions
 
 
 @pytest.fixture(scope="session")

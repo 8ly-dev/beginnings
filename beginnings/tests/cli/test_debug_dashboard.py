@@ -8,7 +8,7 @@ import time
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
-from src.beginnings.cli.main import cli
+from beginnings.cli.main import cli
 
 
 class TestDebugDashboard:
@@ -100,7 +100,7 @@ class TestDebugWebInterface:
     
     def test_debug_dashboard_initialization(self):
         """Test debug dashboard can be initialized."""
-        from src.beginnings.cli.debug.dashboard import DebugDashboard
+        from beginnings.cli.debug.dashboard import DebugDashboard
         
         dashboard = DebugDashboard(
             host="127.0.0.1",
@@ -116,7 +116,7 @@ class TestDebugWebInterface:
     
     def test_debug_dashboard_route_registration(self):
         """Test debug dashboard registers routes correctly."""
-        from src.beginnings.cli.debug.dashboard import DebugDashboard
+        from beginnings.cli.debug.dashboard import DebugDashboard
         
         dashboard = DebugDashboard()
         app = dashboard.create_app()
@@ -132,7 +132,7 @@ class TestDebugWebInterface:
     
     def test_debug_dashboard_metrics_collection(self):
         """Test debug dashboard collects metrics."""
-        from src.beginnings.cli.debug.metrics import MetricsCollector
+        from beginnings.cli.debug.metrics import MetricsCollector
         
         collector = MetricsCollector()
         
@@ -151,7 +151,7 @@ class TestDebugWebInterface:
     
     def test_debug_dashboard_log_streaming(self):
         """Test debug dashboard streams logs."""
-        from src.beginnings.cli.debug.logs import LogStreamer
+        from beginnings.cli.debug.logs import LogStreamer
         
         streamer = LogStreamer(max_lines=100)
         
@@ -169,7 +169,7 @@ class TestDebugWebInterface:
     
     def test_debug_dashboard_request_tracking(self):
         """Test debug dashboard tracks requests."""
-        from src.beginnings.cli.debug.requests import RequestTracker
+        from beginnings.cli.debug.requests import RequestTracker
         
         tracker = RequestTracker(max_requests=50)
         
@@ -191,7 +191,7 @@ class TestDebugWebInterface:
     
     def test_debug_dashboard_real_time_updates(self):
         """Test debug dashboard provides real-time updates."""
-        from src.beginnings.cli.debug.websocket import WebSocketManager
+        from beginnings.cli.debug.websocket import WebSocketManager
         
         manager = WebSocketManager()
         
@@ -231,7 +231,7 @@ class TestPerformanceProfiler:
     
     def test_profiler_initialization(self):
         """Test profiler can be initialized."""
-        from src.beginnings.cli.debug.profiler import PerformanceProfiler
+        from beginnings.cli.debug.profiler import PerformanceProfiler
         
         profiler = PerformanceProfiler(
             output_dir=self.temp_dir,
@@ -245,7 +245,7 @@ class TestPerformanceProfiler:
     
     def test_profiler_context_manager(self):
         """Test profiler works as context manager."""
-        from src.beginnings.cli.debug.profiler import PerformanceProfiler
+        from beginnings.cli.debug.profiler import PerformanceProfiler
         
         profiler = PerformanceProfiler(output_dir=self.temp_dir)
         
@@ -260,7 +260,7 @@ class TestPerformanceProfiler:
     
     def test_profiler_memory_tracking(self):
         """Test profiler tracks memory usage."""
-        from src.beginnings.cli.debug.profiler import PerformanceProfiler
+        from beginnings.cli.debug.profiler import PerformanceProfiler
         
         profiler = PerformanceProfiler(
             output_dir=self.temp_dir,
@@ -279,7 +279,7 @@ class TestPerformanceProfiler:
     
     def test_profiler_cpu_timing(self):
         """Test profiler tracks CPU timing."""
-        from src.beginnings.cli.debug.profiler import PerformanceProfiler
+        from beginnings.cli.debug.profiler import PerformanceProfiler
         
         profiler = PerformanceProfiler(
             output_dir=self.temp_dir,
@@ -298,7 +298,7 @@ class TestPerformanceProfiler:
     
     def test_profiler_export_formats(self):
         """Test profiler can export different formats."""
-        from src.beginnings.cli.debug.profiler import PerformanceProfiler
+        from beginnings.cli.debug.profiler import PerformanceProfiler
         
         profiler = PerformanceProfiler(output_dir=self.temp_dir)
         
@@ -327,7 +327,7 @@ class TestDebugMiddleware:
     
     def test_debug_middleware_initialization(self):
         """Test debug middleware can be initialized."""
-        from src.beginnings.cli.debug.middleware import DebugMiddleware
+        from beginnings.cli.debug.middleware import DebugMiddleware
         
         middleware = DebugMiddleware(
             enable_request_tracking=True,
@@ -341,7 +341,7 @@ class TestDebugMiddleware:
     
     def test_debug_middleware_request_tracking(self):
         """Test debug middleware tracks requests."""
-        from src.beginnings.cli.debug.middleware import DebugMiddleware
+        from beginnings.cli.debug.middleware import DebugMiddleware
         
         middleware = DebugMiddleware(enable_request_tracking=True)
         
@@ -368,7 +368,7 @@ class TestDebugMiddleware:
     
     def test_debug_middleware_performance_monitoring(self):
         """Test debug middleware monitors performance."""
-        from src.beginnings.cli.debug.middleware import DebugMiddleware
+        from beginnings.cli.debug.middleware import DebugMiddleware
         
         middleware = DebugMiddleware(enable_performance_monitoring=True)
         
@@ -391,7 +391,7 @@ class TestDebugMiddleware:
     
     def test_debug_middleware_error_tracking(self):
         """Test debug middleware tracks errors."""
-        from src.beginnings.cli.debug.middleware import DebugMiddleware
+        from beginnings.cli.debug.middleware import DebugMiddleware
         
         middleware = DebugMiddleware()
         
@@ -415,7 +415,7 @@ class TestDebugConfiguration:
     
     def test_debug_config_from_dict(self):
         """Test loading debug configuration from dictionary."""
-        from src.beginnings.cli.debug.config import DebugConfig
+        from beginnings.cli.debug.config import DebugConfig
         
         config_data = {
             "debug": {
@@ -452,7 +452,7 @@ class TestDebugConfiguration:
     
     def test_debug_config_defaults(self):
         """Test debug configuration with default values."""
-        from src.beginnings.cli.debug.config import DebugConfig
+        from beginnings.cli.debug.config import DebugConfig
         
         debug_config = DebugConfig()
         
@@ -466,7 +466,7 @@ class TestDebugConfiguration:
     
     def test_debug_config_validation(self):
         """Test debug configuration validation."""
-        from src.beginnings.cli.debug.config import DebugConfig
+        from beginnings.cli.debug.config import DebugConfig
         
         # Test invalid port
         with pytest.raises(ValueError, match="port must be between"):
@@ -495,7 +495,7 @@ class TestDebugIntegration:
     
     def test_debug_extension_registration(self):
         """Test debug extension can be registered with framework."""
-        from src.beginnings.cli.debug.extension import DebugExtension
+        from beginnings.cli.debug.extension import DebugExtension
         
         extension = DebugExtension()
         
@@ -513,8 +513,8 @@ class TestDebugIntegration:
     
     def test_debug_extension_with_config(self):
         """Test debug extension with configuration."""
-        from src.beginnings.cli.debug.extension import DebugExtension
-        from src.beginnings.cli.debug.config import DebugConfig
+        from beginnings.cli.debug.extension import DebugExtension
+        from beginnings.cli.debug.config import DebugConfig
         
         config = DebugConfig(
             enabled=True,
@@ -533,7 +533,7 @@ class TestDebugIntegration:
     
     def test_debug_dashboard_integration(self):
         """Test debug dashboard integrates with application."""
-        from src.beginnings.cli.debug.dashboard import DebugDashboard
+        from beginnings.cli.debug.dashboard import DebugDashboard
         
         dashboard = DebugDashboard()
         

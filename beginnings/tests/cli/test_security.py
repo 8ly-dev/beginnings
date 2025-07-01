@@ -1,7 +1,7 @@
 """Tests for security configuration generation."""
 
 import pytest
-from src.beginnings.cli.templates.security import (
+from beginnings.cli.templates.security import (
     generate_secure_defaults,
     generate_secure_secret,
     validate_security_settings,

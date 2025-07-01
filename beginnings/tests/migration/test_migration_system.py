@@ -7,13 +7,13 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from src.beginnings.migration.base import BaseMigration, MigrationStatus, MigrationError
-from src.beginnings.migration.database import DatabaseMigration, DatabaseMigrationRunner
-from src.beginnings.migration.code import CodeMigration, CodeMigrationRunner
-from src.beginnings.migration.config import ConfigMigration, ConfigMigrationRunner
-from src.beginnings.migration.runner import MigrationRunner, MigrationResult, MigrationPlan
-from src.beginnings.migration.registry import MigrationRegistry
-from src.beginnings.migration.utils import MigrationUtils
+from beginnings.migration.base import BaseMigration, MigrationStatus, MigrationError
+from beginnings.migration.database import DatabaseMigration, DatabaseMigrationRunner
+from beginnings.migration.code import CodeMigration, CodeMigrationRunner
+from beginnings.migration.config import ConfigMigration, ConfigMigrationRunner
+from beginnings.migration.runner import MigrationRunner, MigrationResult, MigrationPlan
+from beginnings.migration.registry import MigrationRegistry
+from beginnings.migration.utils import MigrationUtils
 
 
 class MigrationForTesting(BaseMigration):
@@ -651,7 +651,7 @@ class TestMigrationPlan:
     """Test migration plan functionality."""
     
     def test_migration_plan_creation(self):
-        from src.beginnings.migration.runner import MigrationDirection
+        from beginnings.migration.runner import MigrationDirection
         
         migration1 = MigrationForTesting("test_001")
         migration2 = MigrationForTesting("test_002")
@@ -663,7 +663,7 @@ class TestMigrationPlan:
         assert plan.created_at is not None
     
     def test_migration_plan_execution_order(self):
-        from src.beginnings.migration.runner import MigrationDirection
+        from beginnings.migration.runner import MigrationDirection
         
         migration1 = MigrationForTesting("test_001")
         migration2 = MigrationForTesting("test_002")
@@ -679,7 +679,7 @@ class TestMigrationPlan:
         assert order == [migration2, migration1]
     
     def test_migration_plan_estimates(self):
-        from src.beginnings.migration.runner import MigrationDirection
+        from beginnings.migration.runner import MigrationDirection
         
         migration1 = MigrationForTesting("test_001")
         migration2 = MigrationForTesting("test_002")
