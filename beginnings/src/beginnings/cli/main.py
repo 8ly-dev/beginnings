@@ -10,6 +10,7 @@ from .commands.run import (
     debug_command, profile_command, analyze_command
 )
 from .commands.extension import extension_group
+from .commands.docs import docs_group
 from .utils.colors import Colors, format_message
 from .utils.errors import CLIError, handle_cli_error
 
@@ -66,6 +67,7 @@ cli.add_command(config_group)
 cli.add_command(new_command)
 cli.add_command(run_command)
 cli.add_command(extension_group)
+cli.add_command(docs_group)
 
 # Add auto-reload commands
 cli.add_command(dev_command)

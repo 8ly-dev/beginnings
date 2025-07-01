@@ -673,3 +673,228 @@ class DocumentationUtils:
                 return b'\0' in chunk
         except Exception:
             return True
+
+
+class DocumentationValidator:
+    """Validator for documentation quality and completeness."""
+    
+    def __init__(
+        self,
+        docs_dir: str,
+        check_links: bool = True,
+        check_accessibility: bool = False,
+        check_required_pages: bool = True,
+        check_html_syntax: bool = True,
+        min_severity: str = "warning",
+        verbose: bool = False
+    ):
+        self.docs_dir = Path(docs_dir)
+        self.check_links = check_links
+        self.check_accessibility = check_accessibility
+        self.check_required_pages = check_required_pages
+        self.check_html_syntax = check_html_syntax
+        self.min_severity = min_severity
+        self.verbose = verbose
+        
+    async def validate(self) -> 'ValidationResult':
+        """Run all validation checks."""
+        result = ValidationResult()
+        
+        if self.verbose:
+            print(f"Validating documentation in: {self.docs_dir}")
+        
+        # Check if docs directory exists
+        if not self.docs_dir.exists():
+            result.errors.append({
+                'message': f"Documentation directory not found: {self.docs_dir}",
+                'severity': 'error'
+            })
+            return result
+        
+        # HTML syntax validation
+        if self.check_html_syntax:
+            await self._validate_html_syntax(result)
+        
+        # Link validation
+        if self.check_links:
+            await self._validate_links(result)
+        
+        # Required pages check
+        if self.check_required_pages:
+            await self._validate_required_pages(result)
+        
+        # Accessibility check
+        if self.check_accessibility:
+            await self._validate_accessibility(result)
+        
+        return result
+    
+    async def _validate_html_syntax(self, result: 'ValidationResult'):
+        """Validate HTML syntax in documentation files."""
+        html_files = list(self.docs_dir.rglob("*.html"))
+        
+        for html_file in html_files:
+            try:
+                with open(html_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Basic HTML validation
+                if not self._is_valid_html(content):
+                    result.errors.append({
+                        'message': f"Invalid HTML syntax in {html_file.name}",
+                        'file': str(html_file.relative_to(self.docs_dir)),
+                        'severity': 'error'
+                    })
+                    
+            except Exception as e:
+                result.errors.append({
+                    'message': f"Failed to validate {html_file.name}: {e}",
+                    'file': str(html_file.relative_to(self.docs_dir)),
+                    'severity': 'error'
+                })
+    
+    async def _validate_links(self, result: 'ValidationResult'):
+        """Validate internal and external links."""
+        html_files = list(self.docs_dir.rglob("*.html"))
+        
+        for html_file in html_files:
+            try:
+                with open(html_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Extract links
+                links = self._extract_links(content)
+                
+                for link in links:
+                    if self._is_internal_link(link):
+                        if not self._internal_link_exists(link):
+                            result.errors.append({
+                                'message': f"Broken internal link: {link}",
+                                'file': str(html_file.relative_to(self.docs_dir)),
+                                'severity': 'error'
+                            })
+                    
+            except Exception as e:
+                result.warnings.append({
+                    'message': f"Failed to check links in {html_file.name}: {e}",
+                    'file': str(html_file.relative_to(self.docs_dir)),
+                    'severity': 'warning'
+                })
+    
+    async def _validate_required_pages(self, result: 'ValidationResult'):
+        """Check for required documentation pages."""
+        required_pages = ['index.html', 'api.html', 'configuration.html']
+        
+        for page in required_pages:
+            page_path = self.docs_dir / page
+            if not page_path.exists():
+                result.warnings.append({
+                    'message': f"Missing required page: {page}",
+                    'severity': 'warning'
+                })
+    
+    async def _validate_accessibility(self, result: 'ValidationResult'):
+        """Check accessibility compliance."""
+        html_files = list(self.docs_dir.rglob("*.html"))
+        
+        for html_file in html_files:
+            try:
+                with open(html_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Basic accessibility checks
+                if '<img' in content and 'alt=' not in content:
+                    result.warnings.append({
+                        'message': "Images without alt text found",
+                        'file': str(html_file.relative_to(self.docs_dir)),
+                        'severity': 'warning'
+                    })
+                
+                if '<button' in content and not any(attr in content for attr in ['aria-label=', '>']) :
+                    result.warnings.append({
+                        'message': "Buttons without accessible labels found",
+                        'file': str(html_file.relative_to(self.docs_dir)),
+                        'severity': 'warning'
+                    })
+                    
+            except Exception as e:
+                result.info.append({
+                    'message': f"Failed to check accessibility in {html_file.name}: {e}",
+                    'file': str(html_file.relative_to(self.docs_dir)),
+                    'severity': 'info'
+                })
+    
+    def _is_valid_html(self, content: str) -> bool:
+        """Basic HTML validation."""
+        try:
+            # Very basic checks
+            if not content.strip():
+                return False
+            
+            # Check for basic structure
+            has_html_tag = '<html' in content.lower()
+            has_head_tag = '<head' in content.lower()
+            has_body_tag = '<body' in content.lower()
+            
+            # For complete HTML documents, require basic structure
+            if '<!doctype' in content.lower() or '<html' in content.lower():
+                return has_html_tag and has_head_tag and has_body_tag
+            
+            # For HTML fragments, just check it's not empty
+            return True
+            
+        except Exception:
+            return False
+    
+    def _extract_links(self, content: str) -> List[str]:
+        """Extract links from HTML content."""
+        import re
+        link_pattern = r'href=["\'](.*?)["\']'
+        return re.findall(link_pattern, content)
+    
+    def _is_internal_link(self, link: str) -> bool:
+        """Check if link is internal."""
+        return not link.startswith(('http://', 'https://', 'mailto:', '#'))
+    
+    def _internal_link_exists(self, link: str) -> bool:
+        """Check if internal link target exists."""
+        # Remove fragment identifier
+        link = link.split('#')[0]
+        if not link:
+            return True  # Fragment-only links are OK
+        
+        target_path = self.docs_dir / link
+        return target_path.exists()
+
+
+class ValidationResult:
+    """Result of documentation validation."""
+    
+    def __init__(self):
+        self.errors: List[Dict[str, Any]] = []
+        self.warnings: List[Dict[str, Any]] = []
+        self.info: List[Dict[str, Any]] = []
+    
+    def has_errors(self) -> bool:
+        """Check if validation found errors."""
+        return len(self.errors) > 0
+    
+    def has_warnings(self) -> bool:
+        """Check if validation found warnings."""
+        return len(self.warnings) > 0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON output."""
+        return {
+            'validation_results': {
+                'errors': self.errors,
+                'warnings': self.warnings,
+                'info': self.info,
+                'summary': {
+                    'total_errors': len(self.errors),
+                    'total_warnings': len(self.warnings),
+                    'total_info': len(self.info),
+                    'status': 'failed' if self.has_errors() else 'passed'
+                }
+            }
+        }

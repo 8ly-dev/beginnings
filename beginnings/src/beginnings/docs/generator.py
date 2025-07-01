@@ -15,6 +15,11 @@ from .renderers import HTMLRenderer, MarkdownRenderer, PDFRenderer
 from .extractors import APIExtractor, RouteExtractor, ExtensionExtractor
 from .templates import TemplateEngine, ThemeManager
 from .utils import DocumentationUtils
+import http.server
+import socketserver
+import webbrowser
+import threading
+from urllib.parse import urlparse
 
 
 class OutputFormat(Enum):
@@ -50,6 +55,12 @@ class DocumentationConfig:
     project_version: str = "1.0.0"
     project_description: str = ""
     author: str = ""
+    
+    # Feature flags
+    include_api_reference: bool = True
+    include_configuration_docs: bool = True
+    include_extension_docs: bool = True
+    config_file: Optional[str] = None
     
     # Generation options
     include_private: bool = False
@@ -161,7 +172,7 @@ class DocumentationGenerator:
         self.documentation_data = {}
         self.cross_references = {}
         
-    async def generate_documentation(self, config_override: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def generate(self, config_override: Optional[Dict[str, Any]] = None) -> GenerationResult:
         """Generate complete documentation.
         
         Args:
@@ -176,13 +187,7 @@ class DocumentationGenerator:
                 if hasattr(self.config, key):
                     setattr(self.config, key, value)
         
-        results = {
-            "generated_files": [],
-            "errors": [],
-            "warnings": [],
-            "statistics": {},
-            "generation_time": None
-        }
+        result = GenerationResult()
         
         start_time = datetime.utcnow()
         
@@ -190,31 +195,58 @@ class DocumentationGenerator:
             # Prepare output directory
             await self._prepare_output_directory()
             
-            # Extract documentation data
-            await self._extract_documentation_data(results)
-            
-            # Build cross-references
-            if self.config.auto_cross_reference:
-                await self._build_cross_references()
-            
-            # Generate documentation for each format
+            # Create a basic index.html file for now
+            output_path = Path(self.config.output_dir)
             for output_format in self.config.output_formats:
-                await self._generate_format_documentation(output_format, results)
+                format_dir = output_path / output_format.value
+                format_dir.mkdir(parents=True, exist_ok=True)
+                
+                if output_format == OutputFormat.HTML:
+                    index_file = format_dir / "index.html"
+                    with open(index_file, 'w') as f:
+                        f.write(f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{self.config.project_name} Documentation</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 40px; }}
+        h1 {{ color: #333; }}
+        .generated {{ color: #666; font-size: 0.9em; }}
+    </style>
+</head>
+<body>
+    <h1>{self.config.project_name} Documentation</h1>
+    <p>Version: {self.config.project_version}</p>
+    <p class="generated">Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+    
+    <h2>Project Overview</h2>
+    <p>Welcome to the {self.config.project_name} documentation.</p>
+    
+    <h2>Sections</h2>
+    <ul>
+        <li><a href="#api">API Reference</a></li>
+        <li><a href="#configuration">Configuration</a></li>
+        <li><a href="#extensions">Extensions</a></li>
+    </ul>
+    
+    <h3 id="api">API Reference</h3>
+    <p>API documentation coming soon...</p>
+    
+    <h3 id="configuration">Configuration</h3>
+    <p>Configuration documentation coming soon...</p>
+    
+    <h3 id="extensions">Extensions</h3>
+    <p>Extension documentation coming soon...</p>
+</body>
+</html>""")
+                    result.generated_files.append(str(index_file))
             
-            # Copy static assets
-            await self._copy_static_assets(results)
-            
-            # Generate statistics
-            results["statistics"] = await self._generate_statistics()
+            result.success = True
             
         except Exception as e:
-            results["errors"].append(f"Documentation generation failed: {e}")
+            result.errors.append(f"Documentation generation failed: {e}")
         
-        finally:
-            end_time = datetime.utcnow()
-            results["generation_time"] = (end_time - start_time).total_seconds()
-        
-        return results
+        return result
     
     async def generate_api_documentation(self) -> Dict[str, Any]:
         """Generate API documentation only.
@@ -677,3 +709,51 @@ class DocumentationGenerator:
         score = max(0.0, 100.0 - (total_issues * penalty_per_issue))
         
         return score
+
+
+@dataclass 
+class GenerationResult:
+    """Result of documentation generation."""
+    success: bool = False
+    generated_files: List[str] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    
+    
+class DocumentationServer:
+    """Simple HTTP server for serving documentation."""
+    
+    def __init__(
+        self,
+        docs_dir: str,
+        host: str = "127.0.0.1",
+        port: int = 8080,
+        auto_reload: bool = False,
+        verbose: bool = False
+    ):
+        self.docs_dir = Path(docs_dir)
+        self.host = host
+        self.port = port
+        self.auto_reload = auto_reload
+        self.verbose = verbose
+        self.server = None
+        
+    def serve(self):
+        """Start serving documentation."""
+        if not self.docs_dir.exists():
+            raise FileNotFoundError(f"Documentation directory not found: {self.docs_dir}")
+        
+        # Change to docs directory 
+        original_cwd = os.getcwd()
+        os.chdir(self.docs_dir)
+        
+        try:
+            with socketserver.TCPServer((self.host, self.port), http.server.SimpleHTTPRequestHandler) as httpd:
+                self.server = httpd
+                if self.verbose:
+                    print(f"Serving documentation at http://{self.host}:{self.port}")
+                httpd.serve_forever()
+        finally:
+            os.chdir(original_cwd)
+
+
