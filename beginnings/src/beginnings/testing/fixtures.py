@@ -353,3 +353,286 @@ class BeginningsTestFixtures:
             "delivery_attempt": 1,
             "created_at": datetime.utcnow().isoformat()
         }
+
+
+class PerformanceBenchmarkFixtures:
+    """Fixtures for performance benchmarking."""
+    
+    def get_benchmark_config(self) -> Dict[str, Any]:
+        """Get default benchmark configuration."""
+        return {
+            "duration_seconds": 30,
+            "warmup_seconds": 5,
+            "concurrent_requests": 10,
+            "request_rate_limit": 100,
+            "memory_limit_mb": 256.0,
+            "cpu_limit_percent": 80.0,
+            "response_time_threshold_ms": 500.0,
+            "error_rate_threshold": 0.01
+        }
+    
+    def get_load_testing_scenarios(self) -> List[Dict[str, Any]]:
+        """Get load testing scenarios."""
+        return [
+            {
+                "name": "light_load",
+                "concurrent_requests": 5,
+                "duration_seconds": 10,
+                "description": "Light load testing scenario"
+            },
+            {
+                "name": "moderate_load", 
+                "concurrent_requests": 20,
+                "duration_seconds": 30,
+                "description": "Moderate load testing scenario"
+            },
+            {
+                "name": "heavy_load",
+                "concurrent_requests": 50,
+                "duration_seconds": 60,
+                "description": "Heavy load testing scenario"
+            },
+            {
+                "name": "stress_test",
+                "concurrent_requests": 100,
+                "duration_seconds": 120,
+                "description": "Stress testing scenario"
+            }
+        ]
+    
+    def get_performance_test_requests(self) -> List[Dict[str, Any]]:
+        """Get test requests for performance benchmarking."""
+        requests = []
+        
+        # Simple GET requests
+        for i in range(50):
+            requests.append({
+                "method": "GET",
+                "path": f"/api/test/{i}",
+                "headers": {"Content-Type": "application/json"},
+                "body": None,
+                "expected_status": 200
+            })
+        
+        # POST requests with data
+        for i in range(25):
+            requests.append({
+                "method": "POST",
+                "path": "/api/data",
+                "headers": {"Content-Type": "application/json"},
+                "body": {
+                    "id": i,
+                    "data": f"test_data_{i}",
+                    "timestamp": datetime.utcnow().isoformat()
+                },
+                "expected_status": 201
+            })
+        
+        # Complex requests with nested data
+        for i in range(25):
+            requests.append({
+                "method": "PUT",
+                "path": f"/api/complex/{i}",
+                "headers": {"Content-Type": "application/json"},
+                "body": {
+                    "id": i,
+                    "nested": {
+                        "level1": {
+                            "level2": {
+                                "data": [f"item_{j}" for j in range(10)]
+                            }
+                        }
+                    },
+                    "metadata": {
+                        "tags": ["test", "performance", f"item_{i}"],
+                        "created_at": datetime.utcnow().isoformat()
+                    }
+                },
+                "expected_status": 200
+            })
+        
+        return requests
+    
+    def get_memory_stress_scenarios(self) -> List[Dict[str, Any]]:
+        """Get memory stress testing scenarios."""
+        return [
+            {
+                "name": "small_objects",
+                "object_count": 1000,
+                "object_size_kb": 1,
+                "description": "Many small objects test"
+            },
+            {
+                "name": "medium_objects",
+                "object_count": 100,
+                "object_size_kb": 100,
+                "description": "Medium sized objects test"
+            },
+            {
+                "name": "large_objects",
+                "object_count": 10,
+                "object_size_kb": 1000,
+                "description": "Few large objects test"
+            },
+            {
+                "name": "mixed_objects",
+                "object_count": 500,
+                "object_size_kb": "variable",
+                "description": "Mixed object sizes test"
+            }
+        ]
+    
+    def get_cpu_stress_scenarios(self) -> List[Dict[str, Any]]:
+        """Get CPU stress testing scenarios."""
+        return [
+            {
+                "name": "computation_heavy",
+                "iterations": 10000,
+                "complexity": "high",
+                "description": "Computation intensive operations"
+            },
+            {
+                "name": "io_heavy",
+                "file_operations": 1000,
+                "file_size_kb": 10,
+                "description": "IO intensive operations"
+            },
+            {
+                "name": "mixed_workload",
+                "computation_ratio": 0.7,
+                "io_ratio": 0.3,
+                "description": "Mixed CPU and IO workload"
+            }
+        ]
+    
+    def get_baseline_performance_data(self) -> Dict[str, Any]:
+        """Get baseline performance data for comparison."""
+        return {
+            "startup_time_ms": {
+                "excellent": 50,
+                "good": 200,
+                "acceptable": 500,
+                "poor": 1000
+            },
+            "response_time_ms": {
+                "p50": {
+                    "excellent": 10,
+                    "good": 50,
+                    "acceptable": 200,
+                    "poor": 500
+                },
+                "p95": {
+                    "excellent": 50,
+                    "good": 200,
+                    "acceptable": 1000,
+                    "poor": 2000
+                },
+                "p99": {
+                    "excellent": 100,
+                    "good": 500,
+                    "acceptable": 2000,
+                    "poor": 5000
+                }
+            },
+            "memory_usage_mb": {
+                "excellent": 32,
+                "good": 64,
+                "acceptable": 128,
+                "poor": 256
+            },
+            "cpu_usage_percent": {
+                "excellent": 10,
+                "good": 25,
+                "acceptable": 50,
+                "poor": 80
+            },
+            "requests_per_second": {
+                "excellent": 1000,
+                "good": 500,
+                "acceptable": 100,
+                "poor": 50
+            },
+            "error_rate": {
+                "excellent": 0.001,  # 0.1%
+                "good": 0.005,       # 0.5%
+                "acceptable": 0.01,  # 1%
+                "poor": 0.05         # 5%
+            }
+        }
+    
+    def create_mock_extension_factory(self, extension_type: str = "middleware") -> callable:
+        """Create a mock extension factory for benchmarking.
+        
+        Args:
+            extension_type: Type of extension to create
+            
+        Returns:
+            Mock extension factory function
+        """
+        def factory(*args, **kwargs):
+            from .mocks import MockExtension
+            
+            mock_ext = MockExtension()
+            mock_ext.name = f"test_{extension_type}_extension"
+            mock_ext.version = "1.0.0"
+            mock_ext.config = kwargs.get("config", {})
+            
+            # Simulate different startup times based on extension type
+            import time
+            if extension_type == "lightweight":
+                time.sleep(0.01)  # 10ms
+            elif extension_type == "middleware":
+                time.sleep(0.05)  # 50ms
+            elif extension_type == "heavy":
+                time.sleep(0.2)   # 200ms
+            
+            return mock_ext
+        
+        return factory
+    
+    def create_mock_request_generator(self, request_type: str = "simple") -> callable:
+        """Create a mock request generator for benchmarking.
+        
+        Args:
+            request_type: Type of requests to generate
+            
+        Returns:
+            Request generator function
+        """
+        def generator():
+            from .mocks import MockRequest
+            
+            if request_type == "simple":
+                return MockRequest(
+                    method="GET",
+                    path="/api/test",
+                    headers={"Content-Type": "application/json"}
+                )
+            elif request_type == "complex":
+                return MockRequest(
+                    method="POST",
+                    path="/api/complex",
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Request-ID": str(uuid.uuid4())
+                    },
+                    body={
+                        "data": {
+                            "nested": {
+                                "items": [f"item_{i}" for i in range(100)]
+                            }
+                        },
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                )
+            elif request_type == "file_upload":
+                return MockRequest(
+                    method="POST",
+                    path="/api/upload",
+                    headers={"Content-Type": "multipart/form-data"},
+                    body=b"x" * 1024 * 10  # 10KB file
+                )
+            
+            return MockRequest()
+        
+        return generator

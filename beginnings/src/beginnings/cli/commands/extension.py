@@ -636,7 +636,264 @@ class ExtensionLister:
         }
 
 
+@click.command(name="test")
+@click.argument("extension_path", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+@click.option(
+    "--performance", "-p",
+    is_flag=True,
+    help="Run performance benchmarks"
+)
+@click.option(
+    "--benchmark", "-b",
+    is_flag=True,
+    help="Run comprehensive benchmark suite"
+)
+@click.option(
+    "--config", "-c",
+    type=click.Path(exists=True),
+    help="Custom benchmark configuration file"
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(),
+    help="Output file for benchmark results"
+)
+@click.option(
+    "--duration",
+    type=int,
+    default=30,
+    help="Benchmark duration in seconds (default: 30)"
+)
+@click.option(
+    "--concurrent",
+    type=int,
+    default=10,
+    help="Number of concurrent requests (default: 10)"
+)
+@click.option(
+    "--threshold-ms",
+    type=float,
+    default=500.0,
+    help="Response time threshold in milliseconds (default: 500)"
+)
+@click.pass_context
+def test_extension(
+    ctx,
+    extension_path: str,
+    performance: bool,
+    benchmark: bool,
+    config: Optional[str],
+    output: Optional[str],
+    duration: int,
+    concurrent: int,
+    threshold_ms: float
+):
+    """Test an extension with optional performance benchmarking."""
+    from ...testing import (
+        ExtensionTestRunner, 
+        BenchmarkConfiguration,
+        PerformanceBenchmarkFixtures
+    )
+    import importlib.util
+    import sys
+    import json
+    from datetime import datetime
+    
+    verbose = ctx.obj.get("verbose", False)
+    quiet = ctx.obj.get("quiet", False)
+    
+    extension_dir = Path(extension_path)
+    
+    if not extension_dir.exists():
+        raise ProjectError(f"Extension directory not found: {extension_path}")
+    
+    try:
+        # Load the extension module
+        extension_module_path = extension_dir / "__init__.py"
+        if not extension_module_path.exists():
+            extension_module_path = extension_dir / f"{extension_dir.name}.py"
+        
+        if not extension_module_path.exists():
+            raise ProjectError(f"No extension module found in {extension_path}")
+        
+        # Import the extension
+        spec = importlib.util.spec_from_file_location("test_extension", extension_module_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["test_extension"] = module
+        spec.loader.exec_module(module)
+        
+        # Find the extension class
+        extension_class = None
+        for name, obj in vars(module).items():
+            if (hasattr(obj, '__bases__') and 
+                any('BaseExtension' in str(base) for base in obj.__bases__)):
+                extension_class = obj
+                break
+        
+        if not extension_class:
+            raise ProjectError("No extension class found in module")
+        
+        if verbose and not quiet:
+            click.echo(info(f"Testing extension: {extension_class.__name__}"))
+            click.echo()
+        
+        # Load benchmark configuration
+        benchmark_config = BenchmarkConfiguration(
+            duration_seconds=duration,
+            concurrent_requests=concurrent,
+            response_time_threshold_ms=threshold_ms
+        )
+        
+        if config:
+            import yaml
+            with open(config, 'r') as f:
+                config_data = yaml.safe_load(f)
+                
+                # Update benchmark config with file values
+                for key, value in config_data.items():
+                    if hasattr(benchmark_config, key):
+                        setattr(benchmark_config, key, value)
+        
+        # Initialize test runner
+        runner = ExtensionTestRunner(
+            extension_class,
+            extension_path=str(extension_dir),
+            verbose=verbose and not quiet
+        )
+        
+        # Run tests based on options
+        if benchmark or performance:
+            # Run full tests with benchmarks
+            results = runner.run_all_tests_with_benchmarks(
+                include_benchmarks=True,
+                benchmark_config=benchmark_config
+            )
+            
+            if not quiet:
+                _display_test_results_with_benchmarks(results, verbose)
+        else:
+            # Run standard tests only
+            results = runner.run_all_tests()
+            
+            if not quiet:
+                _display_test_results(results, verbose)
+        
+        # Export results if requested
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(output_path, 'w') as f:
+                json.dump(results, f, indent=2)
+            
+            if verbose and not quiet:
+                click.echo(success(f"Results exported to: {output}"))
+        
+        # Exit with error code if tests failed
+        if benchmark or performance:
+            if results.get("benchmarks", {}).get("validation", {}).get("passed", True):
+                if results["total_failed"] == 0:
+                    if not quiet:
+                        click.echo(success("All tests and benchmarks passed!"))
+                else:
+                    if not quiet:
+                        click.echo(error(f"Tests failed: {results['total_failed']} failures"))
+                    sys.exit(1)
+            else:
+                if not quiet:
+                    click.echo(error("Performance benchmarks failed requirements"))
+                sys.exit(1)
+        else:
+            if results["total_failed"] == 0:
+                if not quiet:
+                    click.echo(success("All tests passed!"))
+            else:
+                if not quiet:
+                    click.echo(error(f"Tests failed: {results['total_failed']} failures"))
+                sys.exit(1)
+    
+    except Exception as e:
+        raise ProjectError(f"Extension testing failed: {e}")
+
+
+def _display_test_results(results: dict, verbose: bool):
+    """Display standard test results."""
+    click.echo(highlight("Test Results"))
+    click.echo("=" * 50)
+    
+    click.echo(f"Extension: {results.get('extension', 'Unknown')}")
+    click.echo(f"Total Passed: {results['total_passed']}")
+    click.echo(f"Total Failed: {results['total_failed']}")
+    
+    if results["all_errors"]:
+        click.echo("\nErrors:")
+        for error in results["all_errors"]:
+            click.echo(f"  - {error}")
+    
+    if verbose:
+        click.echo(f"\nConfiguration Tests: {results['config_tests']['passed']}/{results['config_tests']['passed'] + results['config_tests']['failed']}")
+        click.echo(f"Middleware Tests: {results['middleware_tests']['passed']}/{results['middleware_tests']['passed'] + results['middleware_tests']['failed']}")
+        click.echo(f"Lifecycle Tests: {results['lifecycle_tests']['passed']}/{results['lifecycle_tests']['passed'] + results['lifecycle_tests']['failed']}")
+
+
+def _display_test_results_with_benchmarks(results: dict, verbose: bool):
+    """Display test results including benchmark data."""
+    # Display standard test results first
+    _display_test_results(results, verbose)
+    
+    # Display benchmark results
+    if "benchmarks" in results:
+        benchmarks = results["benchmarks"]
+        
+        click.echo("\n" + highlight("Performance Benchmarks"))
+        click.echo("=" * 50)
+        
+        click.echo(f"Performance Score: {benchmarks['performance_score']:.1f}/100")
+        
+        validation = benchmarks.get("validation", {})
+        requirements_met = "✓" if validation.get("passed", False) else "✗"
+        click.echo(f"Requirements Met: {requirements_met}")
+        
+        # Display individual benchmark results
+        for benchmark in benchmarks.get("benchmarks", []):
+            bench_type = benchmark["type"]
+            result = benchmark["result"]
+            
+            click.echo(f"\n{bench_type.title()} Benchmark:")
+            
+            if bench_type == "startup":
+                click.echo(f"  Startup Time: {result['duration_ms']:.2f}ms")
+                click.echo(f"  Memory Usage: {result['memory_usage_mb']:.2f}MB")
+                click.echo(f"  CPU Usage: {result['cpu_usage_percent']:.1f}%")
+            
+            elif bench_type == "middleware":
+                click.echo(f"  Requests/Second: {result['requests_per_second']:.2f}")
+                click.echo(f"  Error Rate: {result['error_rate']:.2%}")
+                if result['percentiles']:
+                    click.echo(f"  P95 Response Time: {result['percentiles'].get('p95', 0):.2f}ms")
+                    click.echo(f"  Average Response Time: {result['percentiles'].get('avg', 0):.2f}ms")
+            
+            elif bench_type == "throughput":
+                click.echo(f"  Throughput: {result['requests_per_second']:.2f} req/s")
+                click.echo(f"  Error Rate: {result['error_rate']:.2%}")
+                if result['percentiles']:
+                    click.echo(f"  P95 Response Time: {result['percentiles'].get('p95', 0):.2f}ms")
+            
+            elif bench_type == "memory":
+                if isinstance(result['memory_usage_mb'], dict):
+                    click.echo(f"  Peak Memory: {result['memory_usage_mb'].get('max', 0):.2f}MB")
+                    click.echo(f"  Average Memory: {result['memory_usage_mb'].get('avg', 0):.2f}MB")
+                click.echo(f"  Memory Growth: {result['memory_growth_mb']:.2f}MB")
+        
+        # Display violations if any
+        if validation.get("violations"):
+            click.echo(f"\n{error('Performance Violations:')}")
+            for violation in validation["violations"]:
+                click.echo(f"  - {violation['message']}")
+
+
 # Add commands to the group
 extension_group.add_command(new_extension)
 extension_group.add_command(validate_extension)
 extension_group.add_command(list_extensions)
+extension_group.add_command(test_extension)

@@ -5,7 +5,8 @@ from .fixtures import (
     BeginningsTestFixtures, 
     ExtensionFixtures,
     ConfigFixtures,
-    RequestFixtures
+    RequestFixtures,
+    PerformanceBenchmarkFixtures
 )
 from .mocks import (
     MockBeginningsApp,
@@ -15,6 +16,13 @@ from .mocks import (
 )
 from .assertions import ExtensionAssertions
 from .runners import ExtensionTestRunner, IntegrationTestRunner
+from .benchmarks import (
+    ExtensionBenchmark,
+    BenchmarkSuite,
+    BenchmarkConfiguration,
+    BenchmarkResult,
+    ResourceMonitor
+)
 
 __all__ = [
     # Base test classes
@@ -26,6 +34,7 @@ __all__ = [
     "ExtensionFixtures", 
     "ConfigFixtures",
     "RequestFixtures",
+    "PerformanceBenchmarkFixtures",
     
     # Mocks
     "MockBeginningsApp",
@@ -38,5 +47,12 @@ __all__ = [
     
     # Test runners
     "ExtensionTestRunner",
-    "IntegrationTestRunner"
+    "IntegrationTestRunner",
+    
+    # Benchmarking
+    "ExtensionBenchmark",
+    "BenchmarkSuite", 
+    "BenchmarkConfiguration",
+    "BenchmarkResult",
+    "ResourceMonitor"
 ]

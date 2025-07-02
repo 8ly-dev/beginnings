@@ -16,8 +16,9 @@ import inspect
 from datetime import datetime
 
 from ..extensions.base import BaseExtension
-from .fixtures import ExtensionFixtures, BeginningsTestFixtures
+from .fixtures import ExtensionFixtures, BeginningsTestFixtures, PerformanceBenchmarkFixtures
 from .mocks import MockBeginningsApp, MockHTTPClient, MockDatabase
+from .benchmarks import ExtensionBenchmark, BenchmarkSuite, BenchmarkConfiguration
 
 
 class ExtensionTestRunner:
@@ -262,6 +263,290 @@ class ExtensionTestRunner:
             
         finally:
             self.teardown()
+    
+    def run_performance_benchmarks(
+        self, 
+        benchmark_config: Optional[BenchmarkConfiguration] = None,
+        include_startup: bool = True,
+        include_middleware: bool = True,
+        include_throughput: bool = True,
+        include_memory: bool = True
+    ) -> Dict[str, Any]:
+        """Run performance benchmarks for the extension.
+        
+        Args:
+            benchmark_config: Benchmark configuration
+            include_startup: Include startup benchmarks
+            include_middleware: Include middleware benchmarks  
+            include_throughput: Include throughput benchmarks
+            include_memory: Include memory benchmarks
+            
+        Returns:
+            Benchmark results
+        """
+        if self.verbose:
+            print(f"Running performance benchmarks for {self.extension_class.__name__}")
+            print("=" * 60)
+        
+        # Initialize benchmark
+        config = benchmark_config or BenchmarkConfiguration()
+        benchmark = ExtensionBenchmark(self.extension_class.__name__, config)
+        
+        # Initialize fixtures
+        perf_fixtures = PerformanceBenchmarkFixtures()
+        
+        benchmark_results = {
+            "extension": self.extension_class.__name__,
+            "config": {
+                "duration_seconds": config.duration_seconds,
+                "concurrent_requests": config.concurrent_requests,
+                "response_time_threshold_ms": config.response_time_threshold_ms,
+                "error_rate_threshold": config.error_rate_threshold
+            },
+            "benchmarks": [],
+            "validation": None,
+            "performance_score": 0.0,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        try:
+            # Startup benchmark
+            if include_startup:
+                if self.verbose:
+                    print("Running startup benchmark...")
+                
+                def extension_factory():
+                    config = self.fixtures.extensions.get_default_config()
+                    return self.extension_class(config)
+                
+                startup_result = benchmark.benchmark_startup(extension_factory)
+                benchmark_results["benchmarks"].append({
+                    "type": "startup",
+                    "result": {
+                        "duration_ms": startup_result.duration * 1000,
+                        "memory_usage_mb": startup_result.memory_usage.get("avg", 0),
+                        "cpu_usage_percent": startup_result.cpu_usage
+                    }
+                })
+                
+                if self.verbose:
+                    print(f"  Startup time: {startup_result.duration * 1000:.2f}ms")
+            
+            # Middleware benchmark
+            if include_middleware:
+                if self.verbose:
+                    print("Running middleware benchmark...")
+                
+                try:
+                    # Create extension and get middleware
+                    config = self.fixtures.extensions.get_default_config()
+                    extension = self.extension_class(config)
+                    factory = extension.get_middleware_factory()
+                    
+                    if factory:
+                        middleware = factory({})
+                        
+                        # Create test requests
+                        test_requests = []
+                        request_gen = perf_fixtures.create_mock_request_generator("simple")
+                        for _ in range(100):
+                            test_requests.append(request_gen())
+                        
+                        # Define middleware function to benchmark
+                        def middleware_func(request, context):
+                            if hasattr(middleware, 'process_request'):
+                                return middleware.process_request(request)
+                            elif hasattr(middleware, '__call__'):
+                                return middleware(request, lambda req: None)
+                            return None
+                        
+                        middleware_result = benchmark.benchmark_middleware_execution(
+                            middleware_func, 
+                            test_requests
+                        )
+                        
+                        benchmark_results["benchmarks"].append({
+                            "type": "middleware",
+                            "result": {
+                                "requests_per_second": middleware_result.requests_per_second,
+                                "error_rate": middleware_result.error_rate,
+                                "percentiles": middleware_result.percentiles,
+                                "memory_usage_mb": middleware_result.memory_usage.get("avg", 0),
+                                "cpu_usage_percent": middleware_result.cpu_usage
+                            }
+                        })
+                        
+                        if self.verbose:
+                            print(f"  Requests/second: {middleware_result.requests_per_second:.2f}")
+                            if middleware_result.percentiles:
+                                print(f"  P95 response time: {middleware_result.percentiles.get('p95', 0):.2f}ms")
+                    
+                except Exception as e:
+                    if self.verbose:
+                        print(f"  Middleware benchmark failed: {e}")
+            
+            # Throughput benchmark
+            if include_throughput:
+                if self.verbose:
+                    print("Running throughput benchmark...")
+                
+                try:
+                    # Create a request handler that simulates the extension processing
+                    config = self.fixtures.extensions.get_default_config()
+                    extension = self.extension_class(config)
+                    
+                    def request_handler(request):
+                        # Simulate request processing
+                        import time
+                        time.sleep(0.001)  # 1ms processing time
+                        return {"status": "ok", "processed": True}
+                    
+                    request_gen = perf_fixtures.create_mock_request_generator("simple")
+                    
+                    throughput_result = benchmark.benchmark_throughput(
+                        request_handler,
+                        request_gen,
+                        duration_seconds=10  # Shorter duration for testing
+                    )
+                    
+                    benchmark_results["benchmarks"].append({
+                        "type": "throughput",
+                        "result": {
+                            "requests_per_second": throughput_result.requests_per_second,
+                            "error_rate": throughput_result.error_rate,
+                            "percentiles": throughput_result.percentiles,
+                            "memory_usage_mb": throughput_result.memory_usage.get("avg", 0),
+                            "cpu_usage_percent": throughput_result.cpu_usage
+                        }
+                    })
+                    
+                    if self.verbose:
+                        print(f"  Throughput: {throughput_result.requests_per_second:.2f} req/s")
+                
+                except Exception as e:
+                    if self.verbose:
+                        print(f"  Throughput benchmark failed: {e}")
+            
+            # Memory benchmark
+            if include_memory:
+                if self.verbose:
+                    print("Running memory benchmark...")
+                
+                try:
+                    def memory_load_test():
+                        # Create extension instances to test memory usage
+                        config = self.fixtures.extensions.get_default_config()
+                        extension = self.extension_class(config)
+                        
+                        # Simulate some work
+                        data = [f"test_data_{i}" for i in range(1000)]
+                        return len(data)
+                    
+                    memory_result = benchmark.benchmark_memory_usage(
+                        memory_load_test,
+                        iterations=50
+                    )
+                    
+                    benchmark_results["benchmarks"].append({
+                        "type": "memory",
+                        "result": {
+                            "memory_usage_mb": memory_result.memory_usage,
+                            "memory_growth_mb": memory_result.metadata.get("memory_growth", 0),
+                            "cpu_usage_percent": memory_result.cpu_usage,
+                            "iterations": memory_result.metadata.get("iterations", 0)
+                        }
+                    })
+                    
+                    if self.verbose:
+                        print(f"  Peak memory: {memory_result.memory_usage.get('max', 0):.2f}MB")
+                        print(f"  Memory growth: {memory_result.metadata.get('memory_growth', 0):.2f}MB")
+                
+                except Exception as e:
+                    if self.verbose:
+                        print(f"  Memory benchmark failed: {e}")
+            
+            # Validate performance requirements
+            validation = benchmark.validate_performance_requirements()
+            benchmark_results["validation"] = validation
+            
+            # Calculate performance score
+            benchmark_results["performance_score"] = self._calculate_performance_score(benchmark.results)
+            
+            if self.verbose:
+                print(f"\nPerformance Summary:")
+                print(f"  Performance Score: {benchmark_results['performance_score']:.1f}/100")
+                print(f"  Requirements Met: {'Yes' if validation['passed'] else 'No'}")
+                if validation["violations"]:
+                    print(f"  Violations: {len(validation['violations'])}")
+                    for violation in validation["violations"]:
+                        print(f"    - {violation['message']}")
+            
+            return benchmark_results
+            
+        except Exception as e:
+            if self.verbose:
+                print(f"Benchmark error: {e}")
+            
+            benchmark_results["error"] = str(e)
+            return benchmark_results
+    
+    def run_all_tests_with_benchmarks(
+        self, 
+        include_benchmarks: bool = True,
+        benchmark_config: Optional[BenchmarkConfiguration] = None
+    ) -> Dict[str, Any]:
+        """Run all extension tests including performance benchmarks.
+        
+        Args:
+            include_benchmarks: Whether to include performance benchmarks
+            benchmark_config: Benchmark configuration
+            
+        Returns:
+            Complete test results including benchmarks
+        """
+        # Run standard tests
+        test_results = self.run_all_tests()
+        
+        # Add benchmark results if requested
+        if include_benchmarks:
+            benchmark_results = self.run_performance_benchmarks(benchmark_config)
+            test_results["benchmarks"] = benchmark_results
+        
+        return test_results
+    
+    def _calculate_performance_score(self, results) -> float:
+        """Calculate performance score based on benchmark results.
+        
+        Args:
+            results: List of benchmark results
+            
+        Returns:
+            Performance score (0-100)
+        """
+        if not results:
+            return 0.0
+        
+        scores = []
+        
+        for result in results:
+            score = 100.0  # Start with perfect score
+            
+            # Penalize high error rates
+            if result.error_rate is not None:
+                score -= result.error_rate * 1000  # 10 points per 1% error rate
+            
+            # Penalize slow response times
+            if result.percentiles and "p95" in result.percentiles:
+                if result.percentiles["p95"] > 100:  # 100ms baseline
+                    score -= (result.percentiles["p95"] - 100) / 10
+            
+            # Penalize high CPU usage
+            if result.cpu_usage > 50:  # 50% baseline
+                score -= (result.cpu_usage - 50) * 2
+            
+            scores.append(max(0, min(100, score)))
+        
+        return sum(scores) / len(scores) if scores else 0.0
 
 
 class IntegrationTestRunner:
