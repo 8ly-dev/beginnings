@@ -2,7 +2,6 @@
 
 import click
 import os
-import yaml
 import json
 import shutil
 from datetime import datetime
@@ -10,6 +9,10 @@ from typing import Dict, Any, List, Optional, Tuple
 
 from ..utils.colors import success, error, info, warning, highlight
 from ..utils.errors import ConfigurationError
+from ..utils.performance import (
+    cached_config_load, cached_path_exists, monitor_performance, 
+    PerformanceContext, lazy_import
+)
 from ..templates.security import validate_security_settings
 
 
@@ -30,49 +33,73 @@ def config_group():
     is_flag=True,
     help="Perform security audit during validation"
 )
+@click.option(
+    "--production",
+    is_flag=True,
+    help="Validate for production deployment readiness"
+)
+@click.option(
+    "--environment", "-e",
+    type=click.Choice(["development", "staging", "production"]),
+    help="Target environment for validation"
+)
 @click.pass_context
-def validate_command(ctx: click.Context, config: Optional[str], security_audit: bool):
+@monitor_performance("Config validation", 200)
+def validate_command(ctx: click.Context, config: Optional[str], security_audit: bool, production: bool, environment: Optional[str]):
     """Validate configuration file against schema and security best practices."""
-    if not config:
-        config = _find_config_file()
-    
-    try:
-        click.echo(info(f"Validating configuration: {highlight(config)}"))
+    with PerformanceContext("Configuration validation"):
+        if not config:
+            config = _find_config_file()
         
-        # Load configuration
-        merged_config = _load_config(config)
-        
-        validation_errors = []
-        security_issues = []
-        
-        # Basic structure validation
-        basic_errors = _validate_basic_structure(merged_config)
-        validation_errors.extend(basic_errors)
-        
-        # Security validation
-        if security_audit:
-            security_issues = validate_security_settings(merged_config)
-        
-        # Report results
-        if validation_errors:
-            click.echo(error("✗ Configuration validation failed"))
-            for err in validation_errors:
-                click.echo(f"  • {err}")
+        try:
+            click.echo(info(f"Validating configuration: {highlight(config)}"))
             
-        if security_issues:
-            _report_security_issues(security_issues)
-        
-        if not validation_errors and not security_issues:
-            click.echo(success("✓ Configuration is valid"))
+            # Load configuration using optimized loader
+            with PerformanceContext("Config loading"):
+                merged_config = _load_config_optimized(config)
+            
+            validation_errors = []
+            security_issues = []
+            
+            # Basic structure validation
+            with PerformanceContext("Basic validation"):
+                basic_errors = _validate_basic_structure(merged_config)
+                validation_errors.extend(basic_errors)
+            
+            # Security validation
             if security_audit:
-                click.echo(success("✓ No security issues detected"))
-            return
-        
-        # Exit with error if issues found
-        ctx.exit(1)
-        
-    except Exception as e:
-        raise ConfigurationError(f"Validation failed: {e}")
+                with PerformanceContext("Security audit"):
+                    security_issues = validate_security_settings(merged_config)
+            
+            # Production validation
+            production_issues = []
+            if production or environment == "production":
+                with PerformanceContext("Production validation"):
+                    production_issues = _validate_production_readiness(merged_config, environment or "production")
+            
+            # Report results
+            if validation_errors:
+                click.echo(error("✗ Configuration validation failed"))
+                for err in validation_errors:
+                    click.echo(f"  • {err}")
+                
+            if security_issues:
+                _report_security_issues(security_issues)
+            
+            if production_issues:
+                _report_production_issues(production_issues)
+            
+            if not validation_errors and not security_issues and not production_issues:
+                click.echo(success("✓ Configuration is valid"))
+                if security_audit:
+                    click.echo(success("✓ No security issues detected"))
+                return
+            
+            # Exit with error if issues found
+            ctx.exit(1)
+            
+        except Exception as e:
+            raise ConfigurationError(f"Validation failed: {e}")
 
 
 @config_group.command(name="show")
@@ -94,28 +121,34 @@ def validate_command(ctx: click.Context, config: Optional[str], security_audit: 
     help="Mask sensitive values in output"
 )
 @click.pass_context
+@monitor_performance("Config show", 150)
 def show_command(ctx: click.Context, config: Optional[str], format: str, mask_secrets: bool):
     """Show merged configuration with all includes resolved."""
-    if not config:
-        config = _find_config_file()
-    
-    try:
-        # Only show info message for pretty format
-        if format == "pretty":
-            click.echo(info(f"Configuration from: {highlight(config)}"))
+    with PerformanceContext("Configuration show"):
+        if not config:
+            config = _find_config_file()
         
-        # Load configuration
-        merged_config = _load_config(config)
-        
-        # Mask secrets
-        if mask_secrets:
-            merged_config = _mask_secrets(merged_config)
-        
-        # Output in requested format
-        if format == "json":
-            click.echo(json.dumps(merged_config, indent=2))
-        elif format == "yaml":
-            click.echo(yaml.dump(merged_config, default_flow_style=False))
+        try:
+            # Only show info message for pretty format
+            if format == "pretty":
+                click.echo(info(f"Configuration from: {highlight(config)}"))
+            
+            # Load configuration using optimized loader
+            with PerformanceContext("Config loading"):
+                merged_config = _load_config_optimized(config)
+            
+            # Mask secrets
+            if mask_secrets:
+                with PerformanceContext("Secret masking"):
+                    merged_config = _mask_secrets(merged_config)
+            
+            # Output in requested format
+            with PerformanceContext("Config output"):
+                if format == "json":
+                    click.echo(json.dumps(merged_config, indent=2))
+                elif format == "yaml":
+                    yaml = lazy_import.get("yaml")
+                    click.echo(yaml.dump(merged_config, default_flow_style=False))
         else:  # pretty
             _print_pretty_config(merged_config)
             
@@ -374,6 +407,7 @@ def _load_config(config_path: str) -> Dict[str, Any]:
     """Load configuration with support for includes."""
     if os.path.isfile(config_path):
         # Load the file first
+        yaml = lazy_import.get("yaml")
         with open(config_path) as f:
             config_data = yaml.safe_load(f)
         
@@ -404,6 +438,17 @@ def _load_config(config_path: str) -> Dict[str, Any]:
         # Directory - use enhanced loader
         from ...config.enhanced_loader import load_config_with_includes
         return load_config_with_includes(config_path)
+
+
+def _load_config_optimized(config_path: str) -> Dict[str, Any]:
+    """Optimized configuration loading with caching."""
+    # Try cached version first
+    cached_config = cached_config_load(config_path)
+    if cached_config is not None:
+        return cached_config
+    
+    # Fall back to regular loading if cache miss
+    return _load_config(config_path)
 
 
 def _deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> None:
@@ -744,3 +789,69 @@ def _generate_config_diff(config1: Dict[str, Any], config2: Dict[str, Any],
         diff = difflib.side_by_side_diff(lines1, lines2)
     
     return "".join(diff)
+
+
+def _validate_production_readiness(config: Dict[str, Any], environment: str) -> List[str]:
+    """Validate configuration for production deployment readiness."""
+    try:
+        from ...production import (
+            ProductionValidator,
+            EnvironmentManager,
+            ProductionConfiguration
+        )
+        
+        issues = []
+        
+        # Use production utilities for validation
+        env_manager = EnvironmentManager()
+        validator = ProductionValidator()
+        
+        # Create production config
+        prod_config = ProductionConfiguration(
+            environment=environment,
+            security_level="strict" if environment == "production" else "standard",
+            compliance_requirements=["SOC2"] if environment == "production" else [],
+            monitoring_enabled=True,
+            logging_level="WARNING" if environment == "production" else "INFO"
+        )
+        
+        # Validate environment configuration
+        env_result = env_manager.validate_environment(config, environment)
+        if not env_result.is_valid:
+            issues.extend([f"Environment: {issue}" for issue in env_result.issues])
+        
+        # Security validation
+        security_result = validator.validate_security_configuration(config, prod_config)
+        if not security_result.passed:
+            issues.extend([f"Security: {issue}" for issue in security_result.issues])
+        
+        # Network configuration validation
+        network_result = validator.validate_network_configuration(config)
+        if not network_result.passed:
+            issues.extend([f"Network: {issue}" for issue in network_result.issues])
+        
+        # Compliance validation for production
+        if environment == "production":
+            compliance_result = validator.validate_compliance(config, ["SOC2", "GDPR"])
+            if not compliance_result.passed:
+                issues.extend([f"Compliance: {issue}" for issue in compliance_result.issues])
+        
+        return issues
+        
+    except ImportError:
+        return ["Production validation utilities not available"]
+    except Exception as e:
+        return [f"Production validation error: {str(e)}"]
+
+
+def _report_production_issues(issues: List[str]) -> None:
+    """Report production validation issues."""
+    click.echo(warning("⚠ Production readiness issues detected:"))
+    for issue in issues:
+        click.echo(f"  • {issue}")
+    
+    click.echo()
+    click.echo(info("To fix production issues:"))
+    click.echo("  1. Run: beginnings config fix --type production")
+    click.echo("  2. Review security settings with: beginnings config audit") 
+    click.echo("  3. Check deployment readiness with: beginnings deploy validate")

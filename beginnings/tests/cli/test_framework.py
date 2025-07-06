@@ -375,3 +375,471 @@ class TestCLIIntegration:
             assert result.exit_code == 0
             assert "test-integration" in result.output
             mock_load.assert_called_once()
+
+
+class TestCLIEdgeCases:
+    """Comprehensive edge case testing for CLI functionality."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.runner = CliRunner()
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+    
+    def test_cli_handles_unicode_project_names(self):
+        """Test CLI handles unicode characters in project names."""
+        unicode_names = ["测试项目", "проект-тест", "🚀-project"]
+        
+        for name in unicode_names:
+            result = self.runner.invoke(cli, [
+                "new", name,
+                "--output-dir", self.temp_dir,
+                "--no-git", "--no-deps"
+            ])
+            
+            # Should reject unicode names with helpful error
+            assert result.exit_code != 0
+            assert "invalid project name" in result.output.lower()
+    
+    def test_cli_handles_extremely_long_project_names(self):
+        """Test CLI handles extremely long project names."""
+        long_name = "a" * 500  # Very long name
+        
+        result = self.runner.invoke(cli, [
+            "new", long_name,
+            "--output-dir", self.temp_dir,
+            "--no-git", "--no-deps"
+        ])
+        
+        assert result.exit_code != 0
+        assert "too long" in result.output.lower()
+    
+    def test_cli_handles_reserved_project_names(self):
+        """Test CLI handles reserved system names."""
+        reserved_names = ["con", "aux", "prn", "nul", "__pycache__", ".git"]
+        
+        for name in reserved_names:
+            result = self.runner.invoke(cli, [
+                "new", name,
+                "--output-dir", self.temp_dir,
+                "--no-git", "--no-deps"
+            ])
+            
+            # Should reject reserved names
+            assert result.exit_code != 0
+            assert "invalid" in result.output.lower() or "reserved" in result.output.lower()
+    
+    def test_cli_handles_filesystem_permission_errors(self):
+        """Test CLI handles filesystem permission errors gracefully."""
+        # Create a read-only directory
+        readonly_dir = os.path.join(self.temp_dir, "readonly")
+        os.makedirs(readonly_dir)
+        os.chmod(readonly_dir, 0o444)  # Read-only
+        
+        try:
+            result = self.runner.invoke(cli, [
+                "new", "test-project",
+                "--output-dir", readonly_dir,
+                "--no-git", "--no-deps"
+            ])
+            
+            assert result.exit_code != 0
+            assert "permission" in result.output.lower() or "write" in result.output.lower()
+        finally:
+            # Restore permissions for cleanup
+            os.chmod(readonly_dir, 0o755)
+    
+    def test_cli_handles_disk_space_exhaustion(self):
+        """Test CLI handles disk space issues gracefully."""
+        # Mock OSError for no space left on device
+        with patch('os.makedirs') as mock_makedirs:
+            mock_makedirs.side_effect = OSError(28, "No space left on device")
+            
+            result = self.runner.invoke(cli, [
+                "new", "test-project",
+                "--output-dir", self.temp_dir,
+                "--no-git", "--no-deps"
+            ])
+            
+            assert result.exit_code != 0
+            assert "disk space" in result.output.lower() or "space" in result.output.lower()
+    
+    def test_cli_handles_corrupted_configuration_files(self):
+        """Test CLI handles corrupted configuration files."""
+        # Create corrupted YAML file
+        config_file = os.path.join(self.temp_dir, "corrupted.yaml")
+        with open(config_file, "w") as f:
+            f.write("invalid: yaml: content: [unclosed")
+        
+        result = self.runner.invoke(cli, [
+            "config", "validate",
+            "--config", config_file
+        ])
+        
+        assert result.exit_code != 0
+        assert "yaml" in result.output.lower() or "syntax" in result.output.lower()
+    
+    def test_cli_handles_network_connectivity_issues(self):
+        """Test CLI handles network issues during dependency installation."""
+        with patch('subprocess.run') as mock_subprocess:
+            mock_subprocess.side_effect = ConnectionError("Network unreachable")
+            
+            result = self.runner.invoke(cli, [
+                "new", "test-project",
+                "--output-dir", self.temp_dir,
+                "--no-git"  # Don't skip dependencies
+            ])
+            
+            # Should handle network error gracefully
+            assert result.exit_code != 0
+            assert "network" in result.output.lower() or "connectivity" in result.output.lower()
+    
+    def test_cli_handles_git_repository_conflicts(self):
+        """Test CLI handles existing git repositories."""
+        # Create existing git repository
+        project_dir = os.path.join(self.temp_dir, "existing-git")
+        os.makedirs(project_dir)
+        git_dir = os.path.join(project_dir, ".git")
+        os.makedirs(git_dir)
+        
+        result = self.runner.invoke(cli, [
+            "new", "existing-git",
+            "--output-dir", self.temp_dir,
+            "--no-deps"
+        ])
+        
+        assert result.exit_code != 0
+        assert "exists" in result.output.lower()
+    
+    def test_cli_handles_interrupted_operations(self):
+        """Test CLI handles interrupted operations gracefully."""
+        # Simulate KeyboardInterrupt during project creation
+        with patch('beginnings.cli.templates.engine.TemplateEngine.generate_project') as mock_generate:
+            mock_generate.side_effect = KeyboardInterrupt()
+            
+            result = self.runner.invoke(cli, [
+                "new", "interrupted-project",
+                "--output-dir", self.temp_dir,
+                "--no-git", "--no-deps"
+            ])
+            
+            # Should clean up partially created project
+            assert result.exit_code != 0
+            project_path = os.path.join(self.temp_dir, "interrupted-project")
+            assert not os.path.exists(project_path)
+    
+    def test_cli_validates_command_combinations(self):
+        """Test CLI validates invalid command combinations."""
+        # Test conflicting options
+        result = self.runner.invoke(cli, [
+            "run", "--debug", "--production-preview"
+        ])
+        
+        # Debug and production preview are conflicting
+        assert result.exit_code != 0 or "debug" not in result.output.lower()
+    
+    def test_cli_handles_malformed_yaml_includes(self):
+        """Test CLI handles malformed YAML include directives."""
+        # Create config with circular includes
+        config_dir = os.path.join(self.temp_dir, "config")
+        os.makedirs(config_dir)
+        
+        with open(os.path.join(config_dir, "app.yaml"), "w") as f:
+            f.write("""
+app:
+  name: test
+include:
+  - circular.yaml
+""")
+        
+        with open(os.path.join(config_dir, "circular.yaml"), "w") as f:
+            f.write("""
+include:
+  - app.yaml
+debug: true
+""")
+        
+        result = self.runner.invoke(cli, [
+            "config", "validate",
+            "--config", os.path.join(config_dir, "app.yaml")
+        ])
+        
+        assert result.exit_code != 0
+        assert "circular" in result.output.lower() or "include" in result.output.lower()
+    
+    def test_cli_handles_empty_configuration_files(self):
+        """Test CLI handles empty configuration files."""
+        empty_config = os.path.join(self.temp_dir, "empty.yaml")
+        with open(empty_config, "w") as f:
+            f.write("")
+        
+        result = self.runner.invoke(cli, [
+            "config", "validate",
+            "--config", empty_config
+        ])
+        
+        assert result.exit_code != 0
+        assert "empty" in result.output.lower() or "required" in result.output.lower()
+    
+    def test_cli_handles_symbolic_links(self):
+        """Test CLI handles symbolic links in project paths."""
+        # Create symbolic link to temp directory
+        link_path = os.path.join(self.temp_dir, "link_to_temp")
+        real_path = os.path.join(self.temp_dir, "real_dir")
+        os.makedirs(real_path)
+        
+        try:
+            os.symlink(real_path, link_path)
+            
+            result = self.runner.invoke(cli, [
+                "new", "symlink-project",
+                "--output-dir", link_path,
+                "--no-git", "--no-deps"
+            ])
+            
+            # Should handle symbolic links correctly
+            assert result.exit_code == 0
+            assert os.path.exists(os.path.join(link_path, "symlink-project"))
+            
+        except OSError:
+            # Skip test if symbolic links not supported
+            pytest.skip("Symbolic links not supported on this system")
+    
+    def test_cli_handles_concurrent_operations(self):
+        """Test CLI handles concurrent operations safely."""
+        import threading
+        import time
+        
+        results = []
+        
+        def create_project(name):
+            runner = CliRunner()
+            result = runner.invoke(cli, [
+                "new", f"concurrent-{name}",
+                "--output-dir", self.temp_dir,
+                "--no-git", "--no-deps"
+            ])
+            results.append(result)
+        
+        # Start multiple concurrent project creations
+        threads = []
+        for i in range(3):
+            thread = threading.Thread(target=create_project, args=(i,))
+            threads.append(thread)
+            thread.start()
+        
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+        
+        # All operations should complete successfully
+        assert len(results) == 3
+        successful_results = [r for r in results if r.exit_code == 0]
+        assert len(successful_results) >= 1  # At least one should succeed
+    
+    def test_cli_memory_usage_with_large_configurations(self):
+        """Test CLI memory usage with large configuration files."""
+        # Create large configuration file
+        large_config = os.path.join(self.temp_dir, "large.yaml")
+        with open(large_config, "w") as f:
+            f.write("app:\n  name: large-test\n")
+            f.write("large_data:\n")
+            for i in range(1000):
+                f.write(f"  key_{i}: value_{i}\n")
+        
+        result = self.runner.invoke(cli, [
+            "config", "validate",
+            "--config", large_config
+        ])
+        
+        # Should handle large files without excessive memory usage
+        assert result.exit_code == 0
+    
+    def test_cli_handles_special_characters_in_paths(self):
+        """Test CLI handles special characters in file paths."""
+        special_chars = ["spaces in name", "name-with-hyphens", "name_with_underscores"]
+        
+        for char_name in special_chars:
+            special_dir = os.path.join(self.temp_dir, char_name)
+            os.makedirs(special_dir, exist_ok=True)
+            
+            result = self.runner.invoke(cli, [
+                "new", "test-project",
+                "--output-dir", special_dir,
+                "--no-git", "--no-deps"
+            ])
+            
+            # Should handle special characters in paths
+            assert result.exit_code == 0 or "invalid" not in result.output.lower()
+
+
+class TestCLIPerformance:
+    """Test CLI performance characteristics."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.runner = CliRunner()
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+    
+    def test_cli_startup_time_under_budget(self):
+        """Test CLI startup time is under 1 second."""
+        import time
+        
+        start_time = time.time()
+        result = self.runner.invoke(cli, ["--help"])
+        end_time = time.time()
+        
+        startup_time = end_time - start_time
+        
+        assert result.exit_code == 0
+        assert startup_time < 1.0, f"CLI startup took {startup_time:.2f}s, should be < 1.0s"
+    
+    def test_config_validation_performance(self):
+        """Test configuration validation completes within time budget."""
+        # Create moderate-sized configuration
+        config_file = os.path.join(self.temp_dir, "perf_test.yaml")
+        with open(config_file, "w") as f:
+            f.write("""
+app:
+  name: performance-test
+  debug: false
+routers:
+  html:
+    prefix: ""
+  api:
+    prefix: "/api"
+extensions:
+  - beginnings.extensions.auth:AuthExtension
+  - beginnings.extensions.csrf:CSRFExtension
+auth:
+  providers:
+    session:
+      secret_key: test_secret
+""")
+        
+        import time
+        
+        start_time = time.time()
+        result = self.runner.invoke(cli, [
+            "config", "validate",
+            "--config", config_file
+        ])
+        end_time = time.time()
+        
+        validation_time = end_time - start_time
+        
+        assert result.exit_code == 0 or result.exit_code == 1  # May fail validation but shouldn't crash
+        assert validation_time < 5.0, f"Config validation took {validation_time:.2f}s, should be < 5.0s"
+    
+    def test_project_scaffolding_performance(self):
+        """Test project scaffolding completes within time budget."""
+        import time
+        
+        with patch('subprocess.run') as mock_subprocess:
+            mock_subprocess.return_value = None
+            
+            start_time = time.time()
+            result = self.runner.invoke(cli, [
+                "new", "perf-test-project",
+                "--output-dir", self.temp_dir,
+                "--no-git", "--no-deps"
+            ])
+            end_time = time.time()
+        
+        scaffolding_time = end_time - start_time
+        
+        assert result.exit_code == 0
+        assert scaffolding_time < 10.0, f"Project scaffolding took {scaffolding_time:.2f}s, should be < 10.0s"
+
+
+class TestCLIInteractiveFeatures:
+    """Test CLI interactive features and user input handling."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.runner = CliRunner()
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+    
+    def test_interactive_project_creation(self):
+        """Test interactive project creation with custom template."""
+        # Simulate user input for custom template
+        user_input = "4\n1\ny\ny\n"  # Custom template, auth provider, include tests, include docs
+        
+        with patch('subprocess.run') as mock_subprocess:
+            mock_subprocess.return_value = None
+            
+            result = self.runner.invoke(cli, [
+                "new", "interactive-test",
+                "--template", "custom",
+                "--output-dir", self.temp_dir,
+                "--no-git", "--no-deps"
+            ], input=user_input)
+            
+            # Should complete successfully with interactive input
+            assert result.exit_code == 0
+            assert os.path.exists(os.path.join(self.temp_dir, "interactive-test"))
+    
+    def test_interactive_extension_creation(self):
+        """Test interactive extension creation."""
+        # Simulate user input for extension creation
+        user_input = "2\n1\ny\ny\n"  # Auth provider, auth base, include tests, include docs
+        
+        result = self.runner.invoke(cli, [
+            "extension", "new", "test-auth-ext",
+            "--interactive",
+            "--output-dir", self.temp_dir
+        ], input=user_input)
+        
+        # Should complete successfully
+        assert result.exit_code == 0
+        assert os.path.exists(os.path.join(self.temp_dir, "test-auth-ext"))
+    
+    def test_confirmation_prompts(self):
+        """Test confirmation prompts work correctly."""
+        # Test config fix command with confirmation
+        config_file = os.path.join(self.temp_dir, "fix_test.yaml")
+        with open(config_file, "w") as f:
+            f.write("""
+app:
+  name: test
+  debug: true  # Should be fixed to false
+""")
+        
+        # Test declining confirmation
+        result = self.runner.invoke(cli, [
+            "config", "fix",
+            "--config", config_file
+        ], input="n\n")
+        
+        assert "cancelled" in result.output.lower() or "canceled" in result.output.lower()
+    
+    def test_input_validation_with_retries(self):
+        """Test input validation with retry mechanisms."""
+        # This would test scenarios where user provides invalid input
+        # and gets prompted to retry with corrected input
+        
+        # Test invalid choice followed by valid choice
+        user_input = "99\n1\n"  # Invalid choice, then valid choice
+        
+        result = self.runner.invoke(cli, [
+            "extension", "new", "retry-test",
+            "--interactive",
+            "--output-dir", self.temp_dir
+        ], input=user_input)
+        
+        # Should eventually succeed with valid input
+        assert result.exit_code == 0

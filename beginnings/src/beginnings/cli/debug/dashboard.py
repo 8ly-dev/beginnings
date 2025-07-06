@@ -91,6 +91,9 @@ class DebugDashboard:
         # Background update thread
         self._update_thread = None
         self._stop_event = threading.Event()
+        
+        # Debug middleware integration
+        self._debug_middleware = None
     
     def create_app(self) -> FastAPI:
         """Create FastAPI application for dashboard.
@@ -301,14 +304,42 @@ class DebugDashboard:
         @app.get("/api/timeline/{request_id}")
         def api_timeline(request_id: str):
             """Get middleware timeline for a specific request."""
-            from .middleware import DebugMiddleware
+            if not hasattr(self, '_debug_middleware') or not self._debug_middleware:
+                return APIResponse({
+                    "request_id": request_id,
+                    "timeline_available": False,
+                    "message": "Timeline tracking requires debug middleware integration"
+                })
             
-            # This would be accessed through a global debug middleware instance
-            # For now, return empty data
+            timeline_data = self._debug_middleware.get_timeline_data(request_id)
+            
+            if not timeline_data:
+                return APIResponse({
+                    "request_id": request_id,
+                    "timeline_available": False,
+                    "message": "No timeline data available for this request"
+                })
+            
             return APIResponse({
                 "request_id": request_id,
-                "timeline_available": False,
-                "message": "Timeline tracking requires integration with application middleware"
+                "timeline_available": True,
+                "timeline": timeline_data
+            })
+        
+        @app.get("/api/timeline")
+        def api_all_timelines():
+            """Get all available timeline data."""
+            if not hasattr(self, '_debug_middleware') or not self._debug_middleware:
+                return APIResponse({
+                    "timelines": {},
+                    "message": "Timeline tracking requires debug middleware integration"
+                })
+            
+            all_timelines = self._debug_middleware.get_all_timeline_data()
+            
+            return APIResponse({
+                "timelines": all_timelines,
+                "count": len(all_timelines)
             })
         
         @app.get("/api/extensions")
@@ -437,6 +468,22 @@ class DebugDashboard:
         
         self.app = app
         return app
+    
+    def set_debug_middleware(self, debug_middleware):
+        """Set the debug middleware instance for timeline tracking.
+        
+        Args:
+            debug_middleware: DebugMiddleware instance
+        """
+        self._debug_middleware = debug_middleware
+    
+    def get_debug_middleware(self):
+        """Get the debug middleware instance.
+        
+        Returns:
+            DebugMiddleware instance or None
+        """
+        return self._debug_middleware
     
     def _render_dashboard_template(self) -> str:
         """Render the dashboard HTML template.
