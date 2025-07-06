@@ -5,6 +5,7 @@ This module provides comprehensive migration tools for:
 - Code migrations and refactoring
 - Configuration migrations
 - Extension migrations
+- Framework migrations (Flask, Django, FastAPI to Beginnings)
 
 The migration system supports:
 - Forward and backward migrations
@@ -12,6 +13,7 @@ The migration system supports:
 - Dry-run capabilities
 - Rollback functionality
 - Dependency resolution
+- Cross-framework application migration
 """
 
 from .base import BaseMigration, MigrationError
@@ -21,6 +23,20 @@ from .config import ConfigMigration, ConfigMigrationRunner
 from .runner import MigrationRunner, MigrationResult
 from .registry import MigrationRegistry
 from .utils import MigrationUtils
+
+# Framework migration components
+from .framework import (
+    MigrationFramework,
+    MigrationConfig,
+    MigrationStatus,
+    ValidationResult,
+    FrameworkType
+)
+from .converters import (
+    FlaskConverter,
+    DjangoConverter,
+    FastAPIConverter
+)
 
 __all__ = [
     # Base classes
@@ -42,4 +58,14 @@ __all__ = [
     'MigrationResult',
     'MigrationRegistry',
     'MigrationUtils',
+    
+    # Framework migration
+    'MigrationFramework',
+    'MigrationConfig',
+    'MigrationStatus',
+    'ValidationResult',
+    'FrameworkType',
+    'FlaskConverter',
+    'DjangoConverter',
+    'FastAPIConverter',
 ]
