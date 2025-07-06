@@ -6,6 +6,9 @@ This module provides comprehensive documentation generation tools for:
 - Extension documentation
 - Deployment guides
 - Tutorial generation
+- Interactive documentation with live examples
+- Progressive Web App documentation sites
+- Search functionality
 
 The documentation system supports:
 - Multiple output formats (HTML, Markdown, PDF)
@@ -13,6 +16,12 @@ The documentation system supports:
 - Auto-updating from code changes
 - Cross-referencing and linking
 - Custom themes and templates
+- Progressive Web App features
+- Offline support
+- Fast search indexing
+- Real-time configuration editing
+- Code playground with security sandbox
+- Tutorial progress tracking
 """
 
 from .generator import DocumentationGenerator, DocumentationConfig, OutputFormat, DocumentationLevel
@@ -21,6 +30,39 @@ from .renderers import HTMLRenderer, MarkdownRenderer, PDFRenderer
 from .extractors import APIExtractor, RouteExtractor, ExtensionExtractor
 from .templates import TemplateEngine, ThemeManager
 from .utils import DocumentationUtils
+
+# Interactive components
+from .interactive import (
+    InteractiveConfigEditor,
+    ConfigEditorResult,
+    ValidationResult,
+    CodePlayground,
+    PlaygroundResult,
+    ExecutionContext,
+    TutorialProgressTracker,
+    ProgressResult,
+    CompletionStatus
+)
+
+# Website generation
+from .website import (
+    StaticSiteGenerator,
+    BuildResult,
+    GeneratedPage,
+    PWAManager,
+    PWAConfig,
+    ThemeManager as WebsiteThemeManager,
+    ThemeConfig
+)
+
+# Search functionality
+from .search import (
+    DocumentationSearchEngine,
+    SearchDocument,
+    SearchResult,
+    SearchQuery,
+    SearchResponse
+)
 
 __all__ = [
     # Core classes
@@ -50,4 +92,31 @@ __all__ = [
     
     # Utilities
     'DocumentationUtils',
+    
+    # Interactive components
+    'InteractiveConfigEditor',
+    'ConfigEditorResult',
+    'ValidationResult',
+    'CodePlayground',
+    'PlaygroundResult',
+    'ExecutionContext',
+    'TutorialProgressTracker',
+    'ProgressResult',
+    'CompletionStatus',
+    
+    # Website generation
+    'StaticSiteGenerator',
+    'BuildResult',
+    'GeneratedPage',
+    'PWAManager',
+    'PWAConfig',
+    'WebsiteThemeManager',
+    'ThemeConfig',
+    
+    # Search functionality
+    'DocumentationSearchEngine',
+    'SearchDocument',
+    'SearchResult',
+    'SearchQuery',
+    'SearchResponse',
 ]
